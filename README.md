@@ -6,8 +6,9 @@ Free online tool to extract hyperlinks from spreadsheet files and merge Title + 
 
 ## Features
 
-- **Link Extraction**: Extract hyperlinks from spreadsheet cells and export URLs
-- **Link Merging**: Combine separate Title and URL columns into clickable hyperlinks
+- **Excel Link Extraction**: Extract hyperlinks from Excel/spreadsheet cells and export URLs
+- **Excel Link Merging**: Combine separate Title and URL columns into clickable hyperlinks in Excel
+- **Excel Format Support**: Works with Microsoft Excel files (.xlsx, .xls)
 - **No Server Storage**: All processing happens in-memory (privacy-focused)
 - **Free & Open Source**: No registration required
 
@@ -76,6 +77,12 @@ All URLs are validated and sanitized:
 ## Contributing
 
 Suggestions and bug reports are welcome via GitHub issues.
+
+## Disclaimer
+
+**SheetLink is an independent, open-source project and is not affiliated with, endorsed by, or sponsored by Microsoft Corporation.**
+
+"Excel" and "Microsoft Excel" are trademarks of Microsoft Corporation. This tool provides functionality to work with Excel file formats (.xlsx, .xls) but is developed and maintained independently. All Excel-related file processing is performed using open-source libraries (ClosedXML).
 
 ## License
 
