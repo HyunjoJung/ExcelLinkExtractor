@@ -122,7 +122,7 @@
         async function uploadFile(inputId, url) {
             const input = document.getElementById(inputId);
             if (!input || !input.files || !input.files[0]) {
-                return { error: 'Please select a file.' };
+                return { Error: 'Please select a file.' };
             }
 
             const formData = new FormData();
@@ -138,12 +138,12 @@
                 const data = await response.json();
 
                 if (!response.ok) {
-                    return { error: data.error || 'Server error occurred.' };
+                    return { Error: data.error || data.Error || 'Server error occurred.' };
                 }
 
                 return data;
             } catch (error) {
-                return { error: 'Network error: ' + error.message };
+                return { Error: 'Network error: ' + error.message };
             }
         }
 
