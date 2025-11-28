@@ -1,12 +1,12 @@
-# ExcelLinkExtractor
+# SheetLink
 
-Free online tool to extract hyperlinks from Excel files and merge Title + URL into clickable links.
+Free online tool to extract hyperlinks from spreadsheet files and merge Title + URL into clickable links.
 
-🔗 **Live Site**: [excellink.hyunjo.uk](https://excellink.hyunjo.uk)
+🔗 **Live Site**: [sheetlink.hyunjo.uk](https://sheetlink.hyunjo.uk)
 
 ## Features
 
-- **Link Extraction**: Extract hyperlinks from Excel cells and export URLs
+- **Link Extraction**: Extract hyperlinks from spreadsheet cells and export URLs
 - **Link Merging**: Combine separate Title and URL columns into clickable hyperlinks
 - **No Server Storage**: All processing happens in-memory (privacy-focused)
 - **Free & Open Source**: No registration required
@@ -26,16 +26,19 @@ Free online tool to extract hyperlinks from Excel files and merge Title + URL in
 dotnet run --project ExcelLinkExtractorWeb
 ```
 
-Visit `http://localhost:5000`
+Visit `http://localhost:5050`
 
-### Deployment
+### Building
 
-See [docs/DEPLOY-NOW.md](docs/DEPLOY-NOW.md) for quick deployment guide.
+```bash
+dotnet build
+```
 
-Full documentation:
-- [DEPLOYMENT.md](docs/DEPLOYMENT.md) - Detailed deployment instructions
-- [QUICKSTART.md](docs/QUICKSTART.md) - Step-by-step deployment guide
-- [CLAUDE.md](CLAUDE.md) - Codebase architecture and guidance
+### Publishing
+
+```bash
+dotnet publish ExcelLinkExtractorWeb -c Release -o ./publish
+```
 
 ## Project Structure
 
@@ -43,22 +46,14 @@ Full documentation:
 ExcelLinkExtractor/
 ├── ExcelLinkExtractorWeb/          # Main web application
 │   ├── Components/
-│   │   ├── Pages/                  # Blazor pages (Home, Merge)
+│   │   ├── Pages/                  # Blazor pages (Home, Merge, FAQ)
 │   │   └── Layout/                 # Layout components
 │   ├── Controllers/                # API endpoints
 │   │   └── FileController.cs       # File upload/download
 │   ├── Services/                   # Business logic
 │   │   └── LinkExtractorService.cs # Excel processing
 │   └── wwwroot/                    # Static files
-├── docs/                           # Documentation
-│   ├── DEPLOYMENT.md               # Deployment guide
-│   ├── QUICKSTART.md               # Quick start guide
-│   └── DEPLOY-NOW.md               # Simplified deployment
-├── scripts/                        # Deployment scripts
-│   ├── deploy.sh                   # Auto-deploy script
-│   ├── setup-server.sh             # Server setup
-│   └── cloudflare-tunnel-setup.sh  # Cloudflare Tunnel setup
-└── CLAUDE.md                       # Code architecture
+└── scripts/                        # Deployment scripts
 ```
 
 ## Key Features
@@ -78,45 +73,14 @@ All URLs are validated and sanitized:
 - 10MB file size limit
 - Preserves cell styling where possible
 
-## Development
-
-### Building
-
-```bash
-dotnet build
-```
-
-### Publishing
-
-```bash
-dotnet publish ExcelLinkExtractorWeb -c Release -o ./publish
-```
-
-### Testing Deployment
-
-```bash
-# Deploy to server
-./scripts/deploy.sh
-
-# Check service status
-ssh joe@192.168.0.8 "sudo systemctl status excellinkextractor"
-
-# View logs
-ssh joe@192.168.0.8 "sudo journalctl -u excellinkextractor -f"
-```
-
 ## Contributing
 
-This is a personal project, but suggestions and bug reports are welcome via GitHub issues.
+Suggestions and bug reports are welcome via GitHub issues.
 
 ## License
 
-MIT License - feel free to use this code for your own projects.
+Apache License 2.0 - see [LICENSE](LICENSE) for details.
 
 ## Author
 
-Created for personal use and made available as open source.
-
----
-
-For detailed code architecture and development guidelines, see [CLAUDE.md](CLAUDE.md).
+Created by [HyunjoJung](https://github.com/HyunjoJung)
