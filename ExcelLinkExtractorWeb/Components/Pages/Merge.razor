@@ -2,12 +2,12 @@
 @inject IJSRuntime JS
 @rendermode InteractiveServer
 
-<PageTitle>Link Merger - URL + Title</PageTitle>
+<PageTitle>Link Merger - Create Hyperlinks</PageTitle>
 
 <div class="container py-5">
     <div class="text-center mb-5">
         <h1 class="display-4 fw-bold text-success">Link Merger</h1>
-        <p class="lead text-muted">Combine Title and URL into hyperlinks</p>
+        <p class="lead text-muted">Combine Title and URL into clickable hyperlinks</p>
     </div>
 
     @if (!string.IsNullOrEmpty(errorMessage))
@@ -18,101 +18,210 @@
         </div>
     }
 
-    @if (!string.IsNullOrEmpty(successMessage))
+    @if (isProcessing)
     {
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
-            @successMessage
-            <button type="button" class="btn-close" @onclick="() => successMessage = null"></button>
+        <div class="text-center py-5">
+            <div class="spinner-border text-success" role="status" style="width: 3rem; height: 3rem;">
+                <span class="visually-hidden">Processing...</span>
+            </div>
+            <p class="mt-3 text-muted">Creating hyperlinks...</p>
         </div>
     }
-
-    <div class="card shadow-sm">
-        <div class="card-header bg-success text-white">
-            <h5 class="mb-0">Input Data</h5>
-        </div>
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-6">
-                    <label class="form-label fw-bold">Title Column</label>
-                    <textarea class="form-control" rows="10" @bind="titleInput" placeholder="Enter titles (one per line)&#10;&#10;Example:&#10;Google&#10;GitHub&#10;YouTube"></textarea>
+    else if (result != null)
+    {
+        <!-- Result -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">Merge Complete!</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center mb-4">
+                    <div class="col-md-6">
+                        <div class="fs-1 fw-bold text-success">@result.TotalRows</div>
+                        <div class="text-muted">Total Rows</div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="fs-1 fw-bold text-primary">@result.LinksCreated</div>
+                        <div class="text-muted">Hyperlinks Created</div>
+                    </div>
                 </div>
-                <div class="col-md-6">
-                    <label class="form-label fw-bold">URL Column</label>
-                    <textarea class="form-control" rows="10" @bind="urlInput" placeholder="Enter URLs (one per line)&#10;&#10;Example:&#10;https://google.com&#10;https://github.com&#10;https://youtube.com"></textarea>
+
+                @if (result.Links?.Any() == true)
+                {
+                    <h6 class="mb-3">Preview (First 10)</h6>
+                    <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                        <table class="table table-sm table-hover">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Title</th>
+                                    <th>URL</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var link in result.Links)
+                                {
+                                    <tr>
+                                        <td>@link.Row</td>
+                                        <td class="text-truncate" style="max-width: 200px;">@link.Title</td>
+                                        <td class="text-truncate" style="max-width: 300px;">
+                                            <a href="@link.Url" target="_blank" rel="noopener">@link.Url</a>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+
+                <div class="d-flex gap-2 mt-4 justify-content-center">
+                    <button class="btn btn-success btn-lg" @onclick="DownloadResult">
+                        Download Result
+                    </button>
+                    <button class="btn btn-outline-secondary btn-lg" @onclick="Reset">
+                        Process New File
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- Upload -->
+        <div class="row g-4">
+            <!-- Step 1: Download Template -->
+            <div class="col-md-6">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">Step 1. Download Sample</h5>
+                    </div>
+                    <div class="card-body text-center p-4">
+                        <p class="text-muted mb-4">Sample file with 'Title' and 'URL' columns</p>
+                        <a href="/api/file/merge-template" class="btn btn-outline-success btn-lg" download>
+                            Download Sample (.xlsx)
+                        </a>
+                    </div>
                 </div>
             </div>
 
-            <div class="mt-4 text-center">
-                <button class="btn btn-success btn-lg" @onclick="MergeAndDownload">
-                    Merge & Download Excel
-                </button>
-                <button class="btn btn-outline-secondary btn-lg ms-2" @onclick="Clear">
-                    Clear
-                </button>
+            <!-- Step 2: Upload File -->
+            <div class="col-md-6">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Step 2. Upload File</h5>
+                    </div>
+                    <div class="card-body text-center p-4">
+                        <p class="text-muted mb-4">Upload your Excel with Title and URL columns</p>
+                        <input type="file" id="mergeFileInput" accept=".xlsx,.xls" class="form-control" style="max-width: 300px; margin: 0 auto;" />
+                        <button class="btn btn-primary btn-lg mt-3" @onclick="UploadFile">
+                            Upload & Merge
+                        </button>
+                        <p class="mt-2 small text-muted">Max 10MB</p>
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
 
-    <div class="card shadow-sm mt-4">
-        <div class="card-body">
-            <h5 class="card-title">How to use</h5>
-            <ol class="mb-0">
-                <li>Paste titles in the left column (one per line)</li>
-                <li>Paste URLs in the right column (one per line)</li>
-                <li>Click "Merge & Download Excel" to create hyperlinks</li>
-                <li>The output Excel will have clickable hyperlinks in the Title column</li>
-            </ol>
+        <!-- How to use -->
+        <div class="card shadow-sm mt-4">
+            <div class="card-body">
+                <h5 class="card-title">How to Use</h5>
+                <ol class="mb-0">
+                    <li>Download the sample or prepare your Excel file</li>
+                    <li>Add your titles in the 'Title' column</li>
+                    <li>Add corresponding URLs in the 'URL' column</li>
+                    <li>Upload the file to create clickable hyperlinks</li>
+                </ol>
+            </div>
         </div>
-    </div>
+    }
 </div>
 
 @code {
-    private string titleInput = "";
-    private string urlInput = "";
+    private bool isProcessing = false;
     private string? errorMessage;
-    private string? successMessage;
+    private MergeResult? result;
+    private string? outputBase64;
+    private string? originalFileName;
 
-    private async Task MergeAndDownload()
+    private async Task UploadFile()
     {
-        errorMessage = null;
-        successMessage = null;
-
-        var titles = titleInput.Split('\n', StringSplitOptions.RemoveEmptyEntries)
-                               .Select(t => t.Trim())
-                               .ToList();
-        var urls = urlInput.Split('\n', StringSplitOptions.RemoveEmptyEntries)
-                           .Select(u => u.Trim())
-                           .ToList();
-
-        if (titles.Count == 0 || urls.Count == 0)
-        {
-            errorMessage = "Please enter both titles and URLs.";
-            return;
-        }
-
-        if (titles.Count != urls.Count)
-        {
-            errorMessage = $"Title count ({titles.Count}) and URL count ({urls.Count}) must match.";
-            return;
-        }
-
         try
         {
-            var base64 = await JS.InvokeAsync<string>("createMergedExcel", titles, urls);
-            await JS.InvokeVoidAsync("downloadFile", "merged_links.xlsx", base64);
-            successMessage = $"Successfully created {titles.Count} hyperlinks!";
+            isProcessing = true;
+            errorMessage = null;
+            StateHasChanged();
+
+            var response = await JS.InvokeAsync<ApiResponse>("uploadFile", "mergeFileInput", "/api/file/merge-upload");
+
+            if (response == null)
+            {
+                errorMessage = "No response from server.";
+                return;
+            }
+
+            if (!string.IsNullOrEmpty(response.Error))
+            {
+                errorMessage = response.Error;
+                return;
+            }
+
+            result = new MergeResult
+            {
+                TotalRows = response.TotalRows,
+                LinksCreated = response.LinksCreated,
+                Links = response.Links ?? new List<LinkInfo>()
+            };
+            outputBase64 = response.OutputFileBase64;
+            originalFileName = await JS.InvokeAsync<string>("getFileName", "mergeFileInput");
         }
         catch (Exception ex)
         {
             errorMessage = $"Error: {ex.Message}";
         }
+        finally
+        {
+            isProcessing = false;
+            StateHasChanged();
+        }
     }
 
-    private void Clear()
+    private async Task DownloadResult()
     {
-        titleInput = "";
-        urlInput = "";
+        if (string.IsNullOrEmpty(outputBase64)) return;
+
+        var fileName = $"{Path.GetFileNameWithoutExtension(originalFileName ?? "result")}_merged.xlsx";
+        await JS.InvokeVoidAsync("downloadFile", fileName, outputBase64);
+    }
+
+    private void Reset()
+    {
+        result = null;
         errorMessage = null;
-        successMessage = null;
+        outputBase64 = null;
+        originalFileName = null;
+    }
+
+    private class MergeResult
+    {
+        public int TotalRows { get; set; }
+        public int LinksCreated { get; set; }
+        public List<LinkInfo> Links { get; set; } = new();
+    }
+
+    private class LinkInfo
+    {
+        public int Row { get; set; }
+        public string Title { get; set; } = "";
+        public string Url { get; set; } = "";
+    }
+
+    private class ApiResponse
+    {
+        public int TotalRows { get; set; }
+        public int LinksCreated { get; set; }
+        public List<LinkInfo>? Links { get; set; }
+        public string? OutputFileBase64 { get; set; }
+        public string? Error { get; set; }
     }
 }
