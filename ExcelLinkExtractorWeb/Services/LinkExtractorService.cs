@@ -198,11 +198,19 @@ public class LinkExtractorService
             var titleCell = worksheet.Cell(rowIndex, 1);
             titleCell.Value = titles[i];
 
-            if (!string.IsNullOrEmpty(urls[i]))
+            var sanitizedUrl = SanitizeUrl(urls[i]);
+            if (!string.IsNullOrEmpty(sanitizedUrl))
             {
-                titleCell.SetHyperlink(new XLHyperlink(urls[i]));
-                titleCell.Style.Font.FontColor = XLColor.Blue;
-                titleCell.Style.Font.Underline = XLFontUnderlineValues.Single;
+                try
+                {
+                    titleCell.SetHyperlink(new XLHyperlink(sanitizedUrl));
+                    titleCell.Style.Font.FontColor = XLColor.Blue;
+                    titleCell.Style.Font.Underline = XLFontUnderlineValues.Single;
+                }
+                catch
+                {
+                    // Invalid URL - skip hyperlink but keep text
+                }
             }
 
             worksheet.Cell(rowIndex, 2).Value = urls[i];
@@ -335,12 +343,20 @@ public class LinkExtractorService
                 var titleCell = newWorksheet.Cell(newRowIndex, 1);
                 titleCell.Value = title;
 
-                if (!string.IsNullOrEmpty(url))
+                var sanitizedUrl = SanitizeUrl(url);
+                if (!string.IsNullOrEmpty(sanitizedUrl))
                 {
-                    titleCell.SetHyperlink(new XLHyperlink(url));
-                    titleCell.Style.Font.FontColor = XLColor.Blue;
-                    titleCell.Style.Font.Underline = XLFontUnderlineValues.Single;
-                    result.LinksCreated++;
+                    try
+                    {
+                        titleCell.SetHyperlink(new XLHyperlink(sanitizedUrl));
+                        titleCell.Style.Font.FontColor = XLColor.Blue;
+                        titleCell.Style.Font.Underline = XLFontUnderlineValues.Single;
+                        result.LinksCreated++;
+                    }
+                    catch
+                    {
+                        // Invalid URL - skip hyperlink but keep text
+                    }
                 }
 
                 newWorksheet.Cell(newRowIndex, 2).Value = url;
@@ -372,5 +388,35 @@ public class LinkExtractorService
         }
 
         return result;
+    }
+
+    private static string? SanitizeUrl(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            return null;
+
+        url = url.Trim();
+
+        // Excel hyperlink limit is about 2083 characters
+        if (url.Length > 2000)
+            return null;
+
+        // Add protocol if missing
+        if (!url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+            !url.StartsWith("https://", StringComparison.OrdinalIgnoreCase) &&
+            !url.StartsWith("mailto:", StringComparison.OrdinalIgnoreCase))
+        {
+            url = "https://" + url;
+        }
+
+        // Validate URL format
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+            return null;
+
+        // Only allow http, https, mailto schemes
+        if (uri.Scheme != "http" && uri.Scheme != "https" && uri.Scheme != "mailto")
+            return null;
+
+        return uri.AbsoluteUri;
     }
 }
