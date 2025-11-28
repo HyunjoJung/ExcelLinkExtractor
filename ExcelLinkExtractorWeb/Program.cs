@@ -8,7 +8,7 @@ builder.Services.AddControllers();
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-// LinkExtractor 서비스 등록
+// Register LinkExtractor service
 builder.Services.AddScoped<LinkExtractorService>();
 
 var app = builder.Build();

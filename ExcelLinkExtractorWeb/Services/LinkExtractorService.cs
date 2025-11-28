@@ -20,7 +20,7 @@ public class LinkExtractorService
         public string Url { get; set; } = "";
     }
 
-    public async Task<ExtractionResult> ExtractLinksAsync(Stream fileStream, string linkColumnName = "제목")
+    public async Task<ExtractionResult> ExtractLinksAsync(Stream fileStream, string linkColumnName = "Title")
     {
         return await Task.Run(() => ExtractLinks(fileStream, linkColumnName));
     }
@@ -34,7 +34,7 @@ public class LinkExtractorService
             using var workbook = new XLWorkbook(fileStream);
             var worksheet = workbook.Worksheet(1);
 
-            // 헤더 행 찾기
+            // Find header row
             int? headerRowNumber = null;
             int? targetColumnIndex = null;
 
@@ -63,7 +63,7 @@ public class LinkExtractorService
             var newWorkbook = new XLWorkbook();
             var newWorksheet = newWorkbook.Worksheets.Add("Extracted Links");
 
-            // 헤더 복사
+            // Copy header
             var originalHeaderRow = worksheet.Row(headerRowNumber.Value);
             foreach (var cell in originalHeaderRow.CellsUsed())
             {
@@ -72,7 +72,7 @@ public class LinkExtractorService
                 newCell.Style.Font.Bold = true;
             }
 
-            // 데이터 행 순회
+            // Iterate data rows
             int dataStartRow = headerRowNumber.Value + 1;
             int lastRow = worksheet.LastRowUsed()?.RowNumber() ?? 0;
 
@@ -84,7 +84,7 @@ public class LinkExtractorService
                 var titleCell = row.Cell(targetColumnIndex.Value);
                 string extractedUrl = "";
 
-                // 하이퍼링크 추출
+                // Extract hyperlink
                 if (titleCell.HasHyperlink)
                 {
                     var hyperlink = titleCell.GetHyperlink();
@@ -98,7 +98,7 @@ public class LinkExtractorService
                     });
                 }
 
-                // 모든 열 복사
+                // Copy all columns
                 foreach (var cell in row.CellsUsed())
                 {
                     var newCell = newWorksheet.Cell(newRowIndex, cell.Address.ColumnNumber);
@@ -114,7 +114,7 @@ public class LinkExtractorService
                     }
                 }
 
-                // B열에 URL 텍스트 추가
+                // Add URL text to column B
                 if (!string.IsNullOrEmpty(extractedUrl))
                 {
                     var linkTextCell = newWorksheet.Cell(newRowIndex, 2);
@@ -125,10 +125,10 @@ public class LinkExtractorService
             result.TotalRows = lastRow - dataStartRow + 1;
             result.LinksFound = result.Links.Count;
 
-            // 열 너비 조정
+            // Adjust column width
             newWorksheet.Columns().AdjustToContents();
 
-            // 메모리 스트림으로 저장
+            // Save to memory stream
             using var outputStream = new MemoryStream();
             newWorkbook.SaveAs(outputStream);
             result.OutputFile = outputStream.ToArray();
@@ -146,16 +146,16 @@ public class LinkExtractorService
         using var workbook = new XLWorkbook();
         var worksheet = workbook.Worksheets.Add("Data");
 
-        // 헤더
+        // Header
         worksheet.Cell(1, 1).Value = "Title";
         worksheet.Cell(1, 2).Value = "URL";
 
-        // 헤더 스타일
+        // Header style
         var headerRange = worksheet.Range(1, 1, 1, 2);
         headerRange.Style.Font.Bold = true;
         headerRange.Style.Fill.BackgroundColor = XLColor.LightBlue;
 
-        // 예시 데이터 (하이퍼링크 포함)
+        // Sample data (with hyperlinks)
         worksheet.Cell(2, 1).Value = "Example Link 1";
         worksheet.Cell(2, 1).SetHyperlink(new XLHyperlink("https://www.example.com"));
         worksheet.Cell(2, 1).Style.Font.FontColor = XLColor.Blue;
@@ -166,11 +166,11 @@ public class LinkExtractorService
         worksheet.Cell(3, 1).Style.Font.FontColor = XLColor.Blue;
         worksheet.Cell(3, 1).Style.Font.Underline = XLFontUnderlineValues.Single;
 
-        // 안내 텍스트
+        // Instruction text
         worksheet.Cell(5, 1).Value = "Add hyperlinks to Title column. URLs will be extracted automatically.";
         worksheet.Cell(5, 1).Style.Font.FontColor = XLColor.Gray;
 
-        // 열 너비 조정
+        // Adjust column width
         worksheet.Column(1).Width = 30;
         worksheet.Column(2).Width = 50;
 
@@ -184,14 +184,14 @@ public class LinkExtractorService
         using var workbook = new XLWorkbook();
         var worksheet = workbook.Worksheets.Add("Merged Links");
 
-        // 헤더
+        // Header
         worksheet.Cell(1, 1).Value = "Title";
         worksheet.Cell(1, 2).Value = "URL";
         var headerRange = worksheet.Range(1, 1, 1, 2);
         headerRange.Style.Font.Bold = true;
         headerRange.Style.Fill.BackgroundColor = XLColor.LightGreen;
 
-        // 데이터 추가
+        // Add data
         for (int i = 0; i < titles.Count; i++)
         {
             var rowIndex = i + 2;
@@ -208,7 +208,7 @@ public class LinkExtractorService
             worksheet.Cell(rowIndex, 2).Value = urls[i];
         }
 
-        // 열 너비 조정
+        // Adjust column width
         worksheet.Column(1).Width = 40;
         worksheet.Column(2).Width = 60;
 
