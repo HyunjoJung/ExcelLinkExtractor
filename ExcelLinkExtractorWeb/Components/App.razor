@@ -121,14 +121,16 @@
     <script src="@Assets["lib/bootstrap/dist/js/bootstrap.bundle.min.js"]"></script>
     <script src="@Assets["_framework/blazor.web.js"]"></script>
     <script>
-        // Remove loading screen when Blazor is ready
-        Blazor.start().then(() => {
-            const loading = document.getElementById('blazor-loading');
-            if (loading) {
-                loading.style.opacity = '0';
-                loading.style.transition = 'opacity 0.3s ease';
-                setTimeout(() => loading.remove(), 300);
-            }
+        // Remove loading screen when DOM is fully loaded
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                const loading = document.getElementById('blazor-loading');
+                if (loading) {
+                    loading.style.opacity = '0';
+                    loading.style.transition = 'opacity 0.3s ease';
+                    setTimeout(() => loading.remove(), 300);
+                }
+            }, 500);
         });
 
         function downloadFile(fileName, base64) {
