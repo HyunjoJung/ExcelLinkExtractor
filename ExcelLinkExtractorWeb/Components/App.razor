@@ -110,9 +110,6 @@
     <script src="@Assets["lib/bootstrap/dist/js/bootstrap.bundle.min.js"]"></script>
     <script src="@Assets["_framework/blazor.web.js"]"></script>
     <script>
-        // Store files to prevent loss during Blazor re-rendering
-        const fileStore = {};
-
         function downloadFile(fileName, base64) {
             const link = document.createElement('a');
             link.href = 'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,' + base64;
@@ -120,103 +117,6 @@
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-        }
-
-        // Setup file input to store file immediately on selection
-        function setupFileInput(inputId) {
-            const input = document.getElementById(inputId);
-            if (input && !input.dataset.initialized) {
-                input.dataset.initialized = 'true';
-                input.addEventListener('change', function() {
-                    if (this.files && this.files[0]) {
-                        fileStore[inputId] = this.files[0];
-                    }
-                });
-            }
-        }
-
-        async function uploadFile(inputId, url) {
-            // Try to get file from store first, then from input
-            let file = fileStore[inputId];
-
-            if (!file) {
-                const input = document.getElementById(inputId);
-                if (input && input.files && input.files[0]) {
-                    file = input.files[0];
-                    fileStore[inputId] = file;
-                }
-            }
-
-            if (!file) {
-                return { Error: 'Please select a file.' };
-            }
-
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('columnName', 'Title');
-
-            try {
-                const response = await fetch(url, {
-                    method: 'POST',
-                    body: formData
-                });
-
-                const data = await response.json();
-
-                if (!response.ok) {
-                    return { Error: data.error || data.Error || 'Server error occurred.' };
-                }
-
-                // Clear stored file after successful upload
-                delete fileStore[inputId];
-
-                return data;
-            } catch (error) {
-                return { Error: 'Network error: ' + error.message };
-            }
-        }
-
-        function getFileName(inputId) {
-            // Try to get filename from store first
-            if (fileStore[inputId]) {
-                return fileStore[inputId].name;
-            }
-
-            const input = document.getElementById(inputId);
-            return input && input.files && input.files[0] ? input.files[0].name : '';
-        }
-
-        // Initialize file inputs immediately and on various events
-        function initializeAllFileInputs() {
-            setupFileInput('fileInput');
-            setupFileInput('mergeFileInput');
-        }
-
-        // Try to initialize immediately (script is at the end of body)
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', initializeAllFileInputs);
-        } else {
-            // DOM is already ready
-            initializeAllFileInputs();
-        }
-
-        // Re-initialize after Blazor updates
-        if (window.Blazor) {
-            window.Blazor.addEventListener('enhancedload', initializeAllFileInputs);
-        }
-
-        // Also try after a short delay to catch any late-rendered elements
-        setTimeout(initializeAllFileInputs, 100);
-
-        async function createMergedExcel(titles, urls) {
-            const response = await fetch('/api/file/merge', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ titles, urls })
-            });
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.error);
-            return data.base64;
         }
     </script>
 </body>

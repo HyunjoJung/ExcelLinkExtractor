@@ -1,6 +1,8 @@
 @page "/merge"
 @rendermode InteractiveServer
 @inject IJSRuntime JS
+@inject HttpClient Http
+@using Microsoft.AspNetCore.Components.Forms
 
 <PageTitle>SheetLink - Link Merger</PageTitle>
 
@@ -124,8 +126,8 @@
                     </div>
                     <div class="card-body text-center p-4">
                         <p class="text-muted mb-4">Upload your Excel with Title and URL columns</p>
-                        <input type="file" id="mergeFileInput" accept=".xlsx,.xls" class="form-control" style="max-width: 300px; margin: 0 auto;" />
-                        <button class="btn btn-primary btn-lg mt-3" @onclick="UploadFile">
+                        <InputFile OnChange="HandleFileSelected" accept=".xlsx,.xls" class="form-control" style="max-width: 300px; margin: 0 auto;" />
+                        <button class="btn btn-primary btn-lg mt-3" @onclick="UploadFile" disabled="@(selectedFile == null)">
                             Upload & Merge
                         </button>
                         <p class="mt-2 small text-muted">Max 10MB</p>
@@ -158,37 +160,62 @@
     private MergeResult? result;
     private string? outputBase64;
     private string? originalFileName;
+    private IBrowserFile? selectedFile;
+
+    private void HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        selectedFile = e.File;
+        errorMessage = null;
+    }
 
     private async Task UploadFile()
     {
+        if (selectedFile == null)
+        {
+            errorMessage = "Please select a file.";
+            return;
+        }
+
         try
         {
             isProcessing = true;
             errorMessage = null;
             StateHasChanged();
 
-            var response = await JS.InvokeAsync<ApiResponse>("uploadFile", "mergeFileInput", "/api/file/merge-upload");
+            // Create multipart form data
+            using var content = new MultipartFormDataContent();
 
-            if (response == null)
+            // Read file stream
+            var fileStream = selectedFile.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024); // 10MB
+            var streamContent = new StreamContent(fileStream);
+            streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(selectedFile.ContentType);
+
+            content.Add(streamContent, "file", selectedFile.Name);
+
+            // Post to API
+            var response = await Http.PostAsync("/api/file/merge-upload", content);
+            var responseData = await response.Content.ReadFromJsonAsync<ApiResponse>();
+
+            if (responseData == null)
             {
                 errorMessage = "No response from server.";
                 return;
             }
 
-            if (!string.IsNullOrEmpty(response.Error))
+            if (!string.IsNullOrEmpty(responseData.Error))
             {
-                errorMessage = response.Error;
+                errorMessage = responseData.Error;
                 return;
             }
 
             result = new MergeResult
             {
-                TotalRows = response.TotalRows,
-                LinksCreated = response.LinksCreated,
-                Links = response.Links ?? new List<LinkInfo>()
+                TotalRows = responseData.TotalRows,
+                LinksCreated = responseData.LinksCreated,
+                Links = responseData.Links ?? new List<LinkInfo>()
             };
-            outputBase64 = response.OutputFileBase64;
-            originalFileName = await JS.InvokeAsync<string>("getFileName", "mergeFileInput");
+            outputBase64 = responseData.OutputFileBase64;
+            originalFileName = selectedFile.Name;
         }
         catch (Exception ex)
         {
