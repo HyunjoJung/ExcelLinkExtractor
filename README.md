@@ -53,7 +53,7 @@ ExcelLinkExtractor/
 │   ├── Services/                   # Business logic
 │   │   └── LinkExtractorService.cs # Excel processing
 │   └── wwwroot/                    # Static files
-└── scripts/                        # Deployment scripts
+└── LICENSE                         # Apache License 2.0
 ```
 
 ## Key Features

@@ -24,6 +24,9 @@ packages/
 *.xlsx
 *.xls
 
+# Deployment scripts (contains credentials)
+scripts/
+
 # OS
 Thumbs.db
 .DS_Store
