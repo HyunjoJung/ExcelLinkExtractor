@@ -108,9 +108,17 @@ public class LinkExtractorService
                     {
                         var hyperlink = cell.GetHyperlink();
                         string url = hyperlink.ExternalAddress?.ToString() ?? hyperlink.InternalAddress ?? "";
-                        newCell.SetHyperlink(new XLHyperlink(url));
-                        newCell.Style.Font.FontColor = XLColor.Blue;
-                        newCell.Style.Font.Underline = XLFontUnderlineValues.Single;
+                        var sanitized = SanitizeUrl(url);
+                        if (!string.IsNullOrEmpty(sanitized))
+                        {
+                            try
+                            {
+                                newCell.SetHyperlink(new XLHyperlink(sanitized));
+                                newCell.Style.Font.FontColor = XLColor.Blue;
+                                newCell.Style.Font.Underline = XLFontUnderlineValues.Single;
+                            }
+                            catch { }
+                        }
                     }
                 }
 
