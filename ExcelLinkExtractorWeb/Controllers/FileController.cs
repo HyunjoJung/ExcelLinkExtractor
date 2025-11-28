@@ -18,14 +18,14 @@ public class FileController : ControllerBase
     public async Task<IActionResult> ExtractLinks(IFormFile file, [FromForm] string columnName = "Title")
     {
         if (file == null || file.Length == 0)
-            return BadRequest(new { error = "파일을 선택해주세요." });
+            return BadRequest(new { error = "Please select a file." });
 
         if (file.Length > 10 * 1024 * 1024)
-            return BadRequest(new { error = "파일 크기는 10MB 이하여야 합니다." });
+            return BadRequest(new { error = "File size must be 10MB or less." });
 
         var extension = Path.GetExtension(file.FileName).ToLower();
         if (extension != ".xlsx" && extension != ".xls")
-            return BadRequest(new { error = "xlsx 또는 xls 파일만 지원합니다." });
+            return BadRequest(new { error = "Only .xlsx or .xls files are supported." });
 
         using var stream = new MemoryStream();
         await file.CopyToAsync(stream);

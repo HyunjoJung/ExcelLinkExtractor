@@ -55,13 +55,13 @@ public class LinkExtractorService
 
             if (targetColumnIndex == null)
             {
-                result.ErrorMessage = $"'{linkColumnName}' 열을 찾을 수 없습니다.";
+                result.ErrorMessage = $"Column '{linkColumnName}' not found.";
                 return result;
             }
 
-            // 새 워크북 생성
+            // Create new workbook
             var newWorkbook = new XLWorkbook();
-            var newWorksheet = newWorkbook.Worksheets.Add("추출된 링크");
+            var newWorksheet = newWorkbook.Worksheets.Add("Extracted Links");
 
             // 헤더 복사
             var originalHeaderRow = worksheet.Row(headerRowNumber.Value);
@@ -135,7 +135,7 @@ public class LinkExtractorService
         }
         catch (Exception ex)
         {
-            result.ErrorMessage = $"파일 처리 중 오류: {ex.Message}";
+            result.ErrorMessage = $"Error processing file: {ex.Message}";
         }
 
         return result;

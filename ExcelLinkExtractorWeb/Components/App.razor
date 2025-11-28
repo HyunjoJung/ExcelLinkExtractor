@@ -31,7 +31,7 @@
         async function uploadFile(inputId, url) {
             const input = document.getElementById(inputId);
             if (!input || !input.files || !input.files[0]) {
-                return { error: '파일을 선택해주세요.' };
+                return { error: 'Please select a file.' };
             }
 
             const formData = new FormData();
@@ -47,12 +47,12 @@
                 const data = await response.json();
 
                 if (!response.ok) {
-                    return { error: data.error || '서버 오류가 발생했습니다.' };
+                    return { error: data.error || 'Server error occurred.' };
                 }
 
                 return data;
             } catch (error) {
-                return { error: '네트워크 오류: ' + error.message };
+                return { error: 'Network error: ' + error.message };
             }
         }
 

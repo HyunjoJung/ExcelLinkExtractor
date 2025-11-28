@@ -2,12 +2,12 @@
 @inject IJSRuntime JS
 @rendermode InteractiveServer
 
-<PageTitle>엑셀 하이퍼링크 추출기</PageTitle>
+<PageTitle>Excel Hyperlink Extractor</PageTitle>
 
 <div class="container py-5">
     <div class="text-center mb-5">
-        <h1 class="display-4 fw-bold text-primary">LinkExtractor</h1>
-        <p class="lead text-muted">엑셀 파일에서 하이퍼링크를 간편하게 추출하세요</p>
+        <h1 class="display-4 fw-bold text-primary">Link Extractor</h1>
+        <p class="lead text-muted">Extract hyperlinks from Excel files easily</p>
     </div>
 
     @if (!string.IsNullOrEmpty(errorMessage))
@@ -22,39 +22,39 @@
     {
         <div class="text-center py-5">
             <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
-                <span class="visually-hidden">처리 중...</span>
+                <span class="visually-hidden">Processing...</span>
             </div>
-            <p class="mt-3 text-muted">파일을 처리하고 있습니다...</p>
+            <p class="mt-3 text-muted">Processing your file...</p>
         </div>
     }
     else if (result != null)
     {
-        <!-- 결과 화면 -->
+        <!-- Result -->
         <div class="card shadow-sm mb-4">
             <div class="card-header bg-success text-white">
-                <h5 class="mb-0">추출 완료!</h5>
+                <h5 class="mb-0">Extraction Complete!</h5>
             </div>
             <div class="card-body">
                 <div class="row text-center mb-4">
                     <div class="col-md-6">
                         <div class="fs-1 fw-bold text-primary">@result.TotalRows</div>
-                        <div class="text-muted">전체 행</div>
+                        <div class="text-muted">Total Rows</div>
                     </div>
                     <div class="col-md-6">
                         <div class="fs-1 fw-bold text-success">@result.LinksFound</div>
-                        <div class="text-muted">추출된 링크</div>
+                        <div class="text-muted">Links Found</div>
                     </div>
                 </div>
 
                 @if (result.Links?.Any() == true)
                 {
-                    <h6 class="mb-3">미리보기 (처음 10개)</h6>
+                    <h6 class="mb-3">Preview (First 10)</h6>
                     <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
                         <table class="table table-sm table-hover">
                             <thead class="table-light sticky-top">
                                 <tr>
                                     <th>#</th>
-                                    <th>제목</th>
+                                    <th>Title</th>
                                     <th>URL</th>
                                 </tr>
                             </thead>
@@ -76,10 +76,10 @@
 
                 <div class="d-flex gap-2 mt-4 justify-content-center">
                     <button class="btn btn-primary btn-lg" @onclick="DownloadResult">
-                        결과 다운로드
+                        Download Result
                     </button>
                     <button class="btn btn-outline-secondary btn-lg" @onclick="Reset">
-                        새 파일 처리
+                        Process New File
                     </button>
                 </div>
             </div>
@@ -87,50 +87,50 @@
     }
     else
     {
-        <!-- 업로드 화면 -->
+        <!-- Upload -->
         <div class="row g-4">
-            <!-- Step 1: 양식 다운로드 -->
+            <!-- Step 1: Download Template -->
             <div class="col-md-6">
                 <div class="card shadow-sm h-100">
                     <div class="card-header bg-primary text-white">
-                        <h5 class="mb-0">Step 1. 양식 다운로드</h5>
+                        <h5 class="mb-0">Step 1. Download Template</h5>
                     </div>
                     <div class="card-body text-center p-4">
-                        <p class="text-muted mb-4">하이퍼링크가 있는 '제목' 열을 포함한 양식입니다</p>
+                        <p class="text-muted mb-4">Template with 'Title' column containing hyperlinks</p>
                         <a href="/api/file/template" class="btn btn-outline-primary btn-lg" download>
-                            양식 다운로드 (.xlsx)
+                            Download Template (.xlsx)
                         </a>
                     </div>
                 </div>
             </div>
 
-            <!-- Step 2: 파일 업로드 -->
+            <!-- Step 2: Upload File -->
             <div class="col-md-6">
                 <div class="card shadow-sm h-100">
                     <div class="card-header bg-success text-white">
-                        <h5 class="mb-0">Step 2. 파일 업로드</h5>
+                        <h5 class="mb-0">Step 2. Upload File</h5>
                     </div>
                     <div class="card-body text-center p-4">
-                        <p class="text-muted mb-4">작성한 엑셀 파일을 업로드하세요</p>
+                        <p class="text-muted mb-4">Upload your Excel file with hyperlinks</p>
                         <input type="file" id="fileInput" accept=".xlsx,.xls" class="form-control" style="max-width: 300px; margin: 0 auto;" />
                         <button class="btn btn-success btn-lg mt-3" @onclick="UploadFile">
-                            업로드 및 추출
+                            Upload & Extract
                         </button>
-                        <p class="mt-2 small text-muted">최대 10MB</p>
+                        <p class="mt-2 small text-muted">Max 10MB</p>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- 사용 방법 -->
+        <!-- How to use -->
         <div class="card shadow-sm mt-4">
             <div class="card-body">
-                <h5 class="card-title">사용 방법</h5>
+                <h5 class="card-title">How to Use</h5>
                 <ol class="mb-0">
-                    <li>양식을 다운로드하거나, 기존 엑셀 파일을 준비하세요</li>
-                    <li>'제목' 열에 하이퍼링크가 포함된 텍스트를 입력하세요</li>
-                    <li>파일을 업로드하면 자동으로 링크가 추출됩니다</li>
-                    <li>결과 파일을 다운로드하세요</li>
+                    <li>Download the template or prepare your Excel file</li>
+                    <li>Add hyperlinks to the 'Title' column</li>
+                    <li>Upload the file to extract links automatically</li>
+                    <li>Download the result file</li>
                 </ol>
             </div>
         </div>
@@ -157,7 +157,7 @@
 
             if (response == null)
             {
-                errorMessage = "서버 응답이 없습니다.";
+                errorMessage = "No response from server.";
                 return;
             }
 
@@ -178,7 +178,7 @@
         }
         catch (Exception ex)
         {
-            errorMessage = $"오류: {ex.Message}";
+            errorMessage = $"Error: {ex.Message}";
         }
         finally
         {
@@ -191,7 +191,7 @@
     {
         if (string.IsNullOrEmpty(outputBase64)) return;
 
-        var fileName = $"{Path.GetFileNameWithoutExtension(originalFileName ?? "result")}_추출된링크.xlsx";
+        var fileName = $"{Path.GetFileNameWithoutExtension(originalFileName ?? "result")}_extracted.xlsx";
         await JS.InvokeVoidAsync("downloadFile", fileName, outputBase64);
     }
 
