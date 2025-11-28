@@ -186,19 +186,27 @@
             return input && input.files && input.files[0] ? input.files[0].name : '';
         }
 
-        // Initialize file inputs on page load
-        document.addEventListener('DOMContentLoaded', function() {
+        // Initialize file inputs immediately and on various events
+        function initializeAllFileInputs() {
             setupFileInput('fileInput');
             setupFileInput('mergeFileInput');
-        });
+        }
+
+        // Try to initialize immediately (script is at the end of body)
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeAllFileInputs);
+        } else {
+            // DOM is already ready
+            initializeAllFileInputs();
+        }
 
         // Re-initialize after Blazor updates
         if (window.Blazor) {
-            window.Blazor.addEventListener('enhancedload', function() {
-                setupFileInput('fileInput');
-                setupFileInput('mergeFileInput');
-            });
+            window.Blazor.addEventListener('enhancedload', initializeAllFileInputs);
         }
+
+        // Also try after a short delay to catch any late-rendered elements
+        setTimeout(initializeAllFileInputs, 100);
 
         async function createMergedExcel(titles, urls) {
             const response = await fetch('/api/file/merge', {
