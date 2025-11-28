@@ -14,6 +14,7 @@ obj/
 # Build results
 [Dd]ebug/
 [Rr]elease/
+publish/
 
 # NuGet
 *.nupkg
