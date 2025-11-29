@@ -11,7 +11,7 @@ namespace ExcelLinkExtractorWeb.Services;
 /// Service for extracting and merging hyperlinks in Excel spreadsheets.
 /// Provides functionality to extract URLs from cells and merge Title + URL columns into clickable hyperlinks.
 /// </summary>
-public class LinkExtractorService : ILinkExtractorService
+public partial class LinkExtractorService : ILinkExtractorService
 {
     private readonly ILogger<LinkExtractorService> _logger;
     private readonly ExcelProcessingOptions _options;
@@ -28,80 +28,6 @@ public class LinkExtractorService : ILinkExtractorService
     {
         _logger = logger;
         _options = options.Value;
-    }
-
-    /// <summary>
-    /// Validates that the uploaded file is a valid Excel file.
-    /// </summary>
-    /// <param name="fileStream">The file stream to validate</param>
-    /// <param name="fileName">The name of the file for logging purposes</param>
-    /// <exception cref="InvalidFileFormatException">Thrown when file is invalid or too large</exception>
-    private void ValidateExcelFile(Stream fileStream, string fileName = "unknown")
-    {
-        // Validate file size
-        if (fileStream.Length > _options.MaxFileSizeBytes)
-        {
-            _logger.LogWarning("File {FileName} exceeds maximum size: {FileSize} bytes", fileName, fileStream.Length);
-            throw new InvalidFileFormatException(
-                message: $"File size ({fileStream.Length / 1024 / 1024}MB) exceeds maximum allowed size of {_options.MaxFileSizeMB}MB.",
-                recoverySuggestion: "💡 Tip: Try reducing the file size by removing unnecessary columns, rows, or formatting. Or split your data into smaller files."
-            );
-        }
-
-        if (fileStream.Length == 0)
-        {
-            _logger.LogWarning("File {FileName} is empty", fileName);
-            throw new InvalidFileFormatException(
-                message: "File is empty (0 bytes).",
-                recoverySuggestion: "💡 Tip: Make sure the file uploaded correctly. Try re-saving your Excel file and uploading again."
-            );
-        }
-
-        // Validate file signature (magic bytes)
-        var buffer = new byte[8];
-        var originalPosition = fileStream.Position;
-        fileStream.Position = 0;
-
-        var bytesRead = fileStream.Read(buffer, 0, buffer.Length);
-        fileStream.Position = originalPosition;
-
-        if (bytesRead < 4)
-        {
-            _logger.LogWarning("File {FileName} is too small to be a valid Excel file", fileName);
-            throw new InvalidFileFormatException(
-                message: "File is too small to be a valid Excel file.",
-                recoverySuggestion: "💡 Tip: The file may be corrupted. Try opening it in Excel and re-saving as .xlsx format."
-            );
-        }
-
-        // Check for .xlsx signature (ZIP/PK format)
-        bool isXlsx = buffer[0] == XlsxSignature[0] &&
-                      buffer[1] == XlsxSignature[1] &&
-                      buffer[2] == XlsxSignature[2] &&
-                      buffer[3] == XlsxSignature[3];
-
-        // Check for .xls signature (OLE2 format)
-        bool isXls = bytesRead >= 8 &&
-                     buffer[0] == XlsSignature[0] &&
-                     buffer[1] == XlsSignature[1] &&
-                     buffer[2] == XlsSignature[2] &&
-                     buffer[3] == XlsSignature[3] &&
-                     buffer[4] == XlsSignature[4] &&
-                     buffer[5] == XlsSignature[5] &&
-                     buffer[6] == XlsSignature[6] &&
-                     buffer[7] == XlsSignature[7];
-
-        if (!isXlsx && !isXls)
-        {
-            _logger.LogWarning("File {FileName} has invalid Excel file signature", fileName);
-            throw new InvalidFileFormatException(
-                message: "File is not a valid Excel file (.xlsx or .xls).",
-                recoverySuggestion: "💡 Tip: Make sure the file is actually an Excel file. If it's a CSV or other format, open it in Excel and save it as '.xlsx' format."
-            );
-        }
-
-        _logger.LogInformation("File {FileName} validated successfully ({FileSize} bytes, {FileType})",
-            fileName, fileStream.Length, isXlsx ? "XLSX" : "XLS");
     }
 
     /// <summary>
@@ -840,98 +766,4 @@ public class LinkExtractorService : ILinkExtractorService
         return stylesheet;
     }
 
-    private static string GetCellValue(Cell cell, WorkbookPart workbookPart)
-    {
-        if (cell.CellValue == null)
-            return "";
-
-        var value = cell.CellValue.Text;
-
-        if (cell.DataType != null && cell.DataType.Value == CellValues.SharedString)
-        {
-            var stringTable = workbookPart.SharedStringTablePart!.SharedStringTable;
-            return stringTable.ElementAt(int.Parse(value)).InnerText;
-        }
-
-        return value;
-    }
-
-    private static string? GetHyperlink(WorksheetPart worksheetPart, string cellReference)
-    {
-        var hyperlinks = worksheetPart.Worksheet.GetFirstChild<Hyperlinks>();
-        if (hyperlinks == null)
-            return null;
-
-        var hyperlink = hyperlinks.Elements<Hyperlink>().FirstOrDefault(h => h.Reference == cellReference);
-        if (hyperlink?.Id == null)
-            return null;
-
-        var hyperlinkRelationship = worksheetPart.HyperlinkRelationships.FirstOrDefault(r => r.Id == hyperlink.Id);
-        return hyperlinkRelationship?.Uri?.ToString();
-    }
-
-    private static string AddHyperlinkRelationship(WorksheetPart worksheetPart, string url)
-    {
-        var relationship = worksheetPart.AddHyperlinkRelationship(new Uri(url, UriKind.Absolute), true);
-        return relationship.Id;
-    }
-
-    private static int GetColumnIndex(string cellReference)
-    {
-        var columnName = new string(cellReference.Where(char.IsLetter).ToArray());
-        int columnIndex = 0;
-        for (int i = 0; i < columnName.Length; i++)
-        {
-            columnIndex *= 26;
-            columnIndex += (columnName[i] - 'A' + 1);
-        }
-        return columnIndex;
-    }
-
-    private static string GetCellReference(uint rowIndex, int columnIndex)
-    {
-        string columnName = "";
-        while (columnIndex > 0)
-        {
-            int modulo = (columnIndex - 1) % 26;
-            columnName = Convert.ToChar('A' + modulo) + columnName;
-            columnIndex = (columnIndex - modulo) / 26;
-        }
-        return columnName + rowIndex;
-    }
-
-    /// <summary>
-    /// Sanitizes and validates a URL for use in Excel hyperlinks.
-    /// </summary>
-    /// <param name="url">The URL to sanitize</param>
-    /// <returns>Sanitized URL or null if invalid</returns>
-    private static string? SanitizeUrl(string? url)
-    {
-        if (string.IsNullOrWhiteSpace(url))
-            return null;
-
-        url = url.Trim();
-
-        // Excel hyperlink limit
-        if (url.Length > 2000) // Using hardcoded value as SanitizeUrl is static
-            return null;
-
-        // Add protocol if missing
-        if (!url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
-            !url.StartsWith("https://", StringComparison.OrdinalIgnoreCase) &&
-            !url.StartsWith("mailto:", StringComparison.OrdinalIgnoreCase))
-        {
-            url = "https://" + url;
-        }
-
-        // Validate URL format
-        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
-            return null;
-
-        // Only allow http, https, mailto schemes
-        if (uri.Scheme != "http" && uri.Scheme != "https" && uri.Scheme != "mailto")
-            return null;
-
-        return uri.AbsoluteUri;
-    }
 }
