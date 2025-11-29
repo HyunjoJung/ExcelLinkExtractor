@@ -1,11 +1,97 @@
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Spreadsheet;
+using Microsoft.Extensions.Logging;
 
 namespace ExcelLinkExtractorWeb.Services;
 
+/// <summary>
+/// Service for extracting and merging hyperlinks in Excel spreadsheets.
+/// Provides functionality to extract URLs from cells and merge Title + URL columns into clickable hyperlinks.
+/// </summary>
 public class LinkExtractorService
 {
+    private readonly ILogger<LinkExtractorService> _logger;
+
+    // File validation constants
+    private const int MaxFileSizeBytes = 10 * 1024 * 1024; // 10MB
+    private const int MaxHeaderSearchRows = 10;
+    private const int MaxUrlLength = 2000; // Excel hyperlink limit (~2083 chars, use 2000 for safety)
+
+    // Excel file signatures (magic bytes)
+    private static readonly byte[] XlsxSignature = { 0x50, 0x4B, 0x03, 0x04 }; // PK.. (ZIP format)
+    private static readonly byte[] XlsSignature = { 0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1 }; // OLE2 format
+
+    public LinkExtractorService(ILogger<LinkExtractorService> logger)
+    {
+        _logger = logger;
+    }
+
+    /// <summary>
+    /// Validates that the uploaded file is a valid Excel file.
+    /// </summary>
+    /// <param name="fileStream">The file stream to validate</param>
+    /// <param name="fileName">The name of the file for logging purposes</param>
+    /// <exception cref="InvalidFileFormatException">Thrown when file is invalid or too large</exception>
+    private void ValidateExcelFile(Stream fileStream, string fileName = "unknown")
+    {
+        // Validate file size
+        if (fileStream.Length > MaxFileSizeBytes)
+        {
+            _logger.LogWarning("File {FileName} exceeds maximum size: {FileSize} bytes", fileName, fileStream.Length);
+            throw new InvalidFileFormatException($"File size exceeds maximum allowed size of {MaxFileSizeBytes / (1024 * 1024)}MB.");
+        }
+
+        if (fileStream.Length == 0)
+        {
+            _logger.LogWarning("File {FileName} is empty", fileName);
+            throw new InvalidFileFormatException("File is empty.");
+        }
+
+        // Validate file signature (magic bytes)
+        var buffer = new byte[8];
+        var originalPosition = fileStream.Position;
+        fileStream.Position = 0;
+
+        var bytesRead = fileStream.Read(buffer, 0, buffer.Length);
+        fileStream.Position = originalPosition;
+
+        if (bytesRead < 4)
+        {
+            _logger.LogWarning("File {FileName} is too small to be a valid Excel file", fileName);
+            throw new InvalidFileFormatException("File is too small to be a valid Excel file.");
+        }
+
+        // Check for .xlsx signature (ZIP/PK format)
+        bool isXlsx = buffer[0] == XlsxSignature[0] &&
+                      buffer[1] == XlsxSignature[1] &&
+                      buffer[2] == XlsxSignature[2] &&
+                      buffer[3] == XlsxSignature[3];
+
+        // Check for .xls signature (OLE2 format)
+        bool isXls = bytesRead >= 8 &&
+                     buffer[0] == XlsSignature[0] &&
+                     buffer[1] == XlsSignature[1] &&
+                     buffer[2] == XlsSignature[2] &&
+                     buffer[3] == XlsSignature[3] &&
+                     buffer[4] == XlsSignature[4] &&
+                     buffer[5] == XlsSignature[5] &&
+                     buffer[6] == XlsSignature[6] &&
+                     buffer[7] == XlsSignature[7];
+
+        if (!isXlsx && !isXls)
+        {
+            _logger.LogWarning("File {FileName} has invalid Excel file signature", fileName);
+            throw new InvalidFileFormatException("File is not a valid Excel file (.xlsx or .xls). Please upload a valid Excel spreadsheet.");
+        }
+
+        _logger.LogInformation("File {FileName} validated successfully ({FileSize} bytes, {FileType})",
+            fileName, fileStream.Length, isXlsx ? "XLSX" : "XLS");
+    }
+
+    /// <summary>
+    /// Result of link extraction operation.
+    /// </summary>
     public class ExtractionResult
     {
         public int TotalRows { get; set; }
@@ -15,6 +101,9 @@ public class LinkExtractorService
         public string? ErrorMessage { get; set; }
     }
 
+    /// <summary>
+    /// Information about an extracted link.
+    /// </summary>
     public class LinkInfo
     {
         public int Row { get; set; }
@@ -22,17 +111,34 @@ public class LinkExtractorService
         public string Url { get; set; } = "";
     }
 
+    /// <summary>
+    /// Extracts hyperlinks from a column in an Excel spreadsheet asynchronously.
+    /// </summary>
+    /// <param name="fileStream">The Excel file stream to process</param>
+    /// <param name="linkColumnName">Name of the column containing hyperlinks (default: "Title")</param>
+    /// <returns>Extraction result containing found links and output file</returns>
     public async Task<ExtractionResult> ExtractLinksAsync(Stream fileStream, string linkColumnName = "Title")
     {
         return await Task.Run(() => ExtractLinks(fileStream, linkColumnName));
     }
 
+    /// <summary>
+    /// Extracts hyperlinks from a column in an Excel spreadsheet.
+    /// </summary>
+    /// <param name="fileStream">The Excel file stream to process</param>
+    /// <param name="linkColumnName">Name of the column containing hyperlinks</param>
+    /// <returns>Extraction result containing found links and output file</returns>
     private ExtractionResult ExtractLinks(Stream fileStream, string linkColumnName)
     {
         var result = new ExtractionResult();
 
         try
         {
+            // Validate file before processing
+            ValidateExcelFile(fileStream);
+
+            _logger.LogInformation("Starting link extraction for column '{ColumnName}'", linkColumnName);
+
             using var document = SpreadsheetDocument.Open(fileStream, false);
             var workbookPart = document.WorkbookPart!;
             var worksheetPart = workbookPart.WorksheetParts.First();
@@ -43,7 +149,7 @@ public class LinkExtractorService
             int? headerRowIndex = null;
             int? targetColumnIndex = null;
 
-            foreach (var row in sheetData.Elements<Row>().Take(10))
+            foreach (var row in sheetData.Elements<Row>().Take(MaxHeaderSearchRows))
             {
                 foreach (var cell in row.Elements<Cell>())
                 {
@@ -60,9 +166,12 @@ public class LinkExtractorService
 
             if (targetColumnIndex == null || headerRowIndex == null)
             {
-                result.ErrorMessage = $"Column '{linkColumnName}' not found.";
-                return result;
+                _logger.LogWarning("Column '{ColumnName}' not found in spreadsheet", linkColumnName);
+                throw new InvalidColumnException(linkColumnName);
             }
+
+            _logger.LogDebug("Found column '{ColumnName}' at column index {ColumnIndex}, header row {HeaderRow}",
+                linkColumnName, targetColumnIndex, headerRowIndex);
 
             // Create new workbook
             var outputStream = new MemoryStream();
@@ -191,15 +300,33 @@ public class LinkExtractorService
             }
 
             result.OutputFile = outputStream.ToArray();
+
+            _logger.LogInformation("Link extraction completed successfully. Total rows: {TotalRows}, Links found: {LinksFound}",
+                result.TotalRows, result.LinksFound);
+        }
+        catch (InvalidFileFormatException ex)
+        {
+            _logger.LogError(ex, "Invalid file format during link extraction");
+            result.ErrorMessage = ex.Message;
+        }
+        catch (InvalidColumnException ex)
+        {
+            _logger.LogError(ex, "Column not found during link extraction");
+            result.ErrorMessage = ex.Message;
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Unexpected error during link extraction");
             result.ErrorMessage = $"Error processing file: {ex.Message}";
         }
 
         return result;
     }
 
+    /// <summary>
+    /// Creates a sample template file for link extraction.
+    /// </summary>
+    /// <returns>Byte array containing the template Excel file</returns>
     public byte[] CreateTemplate()
     {
         var stream = new MemoryStream();
@@ -294,6 +421,10 @@ public class LinkExtractorService
         return stream.ToArray();
     }
 
+    /// <summary>
+    /// Creates a sample template file for link merging.
+    /// </summary>
+    /// <returns>Byte array containing the template Excel file</returns>
     public byte[] CreateMergeTemplate()
     {
         var stream = new MemoryStream();
@@ -388,6 +519,9 @@ public class LinkExtractorService
         return stream.ToArray();
     }
 
+    /// <summary>
+    /// Result of link merging operation.
+    /// </summary>
     public class MergeResult
     {
         public int TotalRows { get; set; }
@@ -397,17 +531,32 @@ public class LinkExtractorService
         public string? ErrorMessage { get; set; }
     }
 
+    /// <summary>
+    /// Merges Title and URL columns into clickable hyperlinks asynchronously.
+    /// </summary>
+    /// <param name="fileStream">The Excel file stream to process</param>
+    /// <returns>Merge result containing created links and output file</returns>
     public async Task<MergeResult> MergeFromFileAsync(Stream fileStream)
     {
         return await Task.Run(() => MergeFromFile(fileStream));
     }
 
+    /// <summary>
+    /// Merges Title and URL columns into clickable hyperlinks.
+    /// </summary>
+    /// <param name="fileStream">The Excel file stream to process</param>
+    /// <returns>Merge result containing created links and output file</returns>
     private MergeResult MergeFromFile(Stream fileStream)
     {
         var result = new MergeResult();
 
         try
         {
+            // Validate file before processing
+            ValidateExcelFile(fileStream);
+
+            _logger.LogInformation("Starting link merge operation");
+
             using var document = SpreadsheetDocument.Open(fileStream, false);
             var workbookPart = document.WorkbookPart!;
             var worksheetPart = workbookPart.WorksheetParts.First();
@@ -419,7 +568,7 @@ public class LinkExtractorService
             int? titleColumnIndex = null;
             int? urlColumnIndex = null;
 
-            foreach (var row in sheetData.Elements<Row>().Take(10))
+            foreach (var row in sheetData.Elements<Row>().Take(MaxHeaderSearchRows))
             {
                 foreach (var cell in row.Elements<Cell>())
                 {
@@ -439,9 +588,19 @@ public class LinkExtractorService
 
             if (titleColumnIndex == null || urlColumnIndex == null)
             {
-                result.ErrorMessage = "Could not find 'Title' and 'URL' columns.";
-                return result;
+                _logger.LogWarning("Required columns not found. Title column: {TitleFound}, URL column: {UrlFound}",
+                    titleColumnIndex != null, urlColumnIndex != null);
+
+                if (titleColumnIndex == null && urlColumnIndex == null)
+                    throw new ExcelProcessingException("Could not find 'Title' and 'URL' columns in the spreadsheet.");
+                else if (titleColumnIndex == null)
+                    throw new InvalidColumnException("Title");
+                else
+                    throw new InvalidColumnException("URL");
             }
+
+            _logger.LogDebug("Found columns - Title: {TitleColumn}, URL: {UrlColumn}, Header row: {HeaderRow}",
+                titleColumnIndex, urlColumnIndex, headerRowIndex);
 
             // Create new workbook
             var outputStream = new MemoryStream();
@@ -564,9 +723,28 @@ public class LinkExtractorService
             }
 
             result.OutputFile = outputStream.ToArray();
+
+            _logger.LogInformation("Link merge completed successfully. Total rows: {TotalRows}, Links created: {LinksCreated}",
+                result.TotalRows, result.LinksCreated);
+        }
+        catch (InvalidFileFormatException ex)
+        {
+            _logger.LogError(ex, "Invalid file format during link merge");
+            result.ErrorMessage = ex.Message;
+        }
+        catch (InvalidColumnException ex)
+        {
+            _logger.LogError(ex, "Column not found during link merge");
+            result.ErrorMessage = ex.Message;
+        }
+        catch (ExcelProcessingException ex)
+        {
+            _logger.LogError(ex, "Excel processing error during link merge");
+            result.ErrorMessage = ex.Message;
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Unexpected error during link merge");
             result.ErrorMessage = $"Error processing file: {ex.Message}";
         }
 
@@ -683,6 +861,11 @@ public class LinkExtractorService
         return columnName + rowIndex;
     }
 
+    /// <summary>
+    /// Sanitizes and validates a URL for use in Excel hyperlinks.
+    /// </summary>
+    /// <param name="url">The URL to sanitize</param>
+    /// <returns>Sanitized URL or null if invalid</returns>
     private static string? SanitizeUrl(string? url)
     {
         if (string.IsNullOrWhiteSpace(url))
@@ -690,8 +873,8 @@ public class LinkExtractorService
 
         url = url.Trim();
 
-        // Excel hyperlink limit is about 2083 characters
-        if (url.Length > 2000)
+        // Excel hyperlink limit
+        if (url.Length > MaxUrlLength)
             return null;
 
         // Add protocol if missing
