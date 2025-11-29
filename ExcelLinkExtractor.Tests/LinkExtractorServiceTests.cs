@@ -3,7 +3,9 @@ using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Spreadsheet;
 using ExcelLinkExtractorWeb.Configuration;
 using ExcelLinkExtractorWeb.Services;
+using ExcelLinkExtractorWeb.Services.Metrics;
 using FluentAssertions;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -16,14 +18,18 @@ public class LinkExtractorServiceTests
     private readonly LinkExtractorService _service;
     private readonly Mock<ILogger<LinkExtractorService>> _loggerMock;
     private readonly Mock<IOptions<ExcelProcessingOptions>> _optionsMock;
+    private readonly IMemoryCache _memoryCache;
+    private readonly IMetricsService _metrics;
 
     public LinkExtractorServiceTests()
     {
         _loggerMock = new Mock<ILogger<LinkExtractorService>>();
         _optionsMock = new Mock<IOptions<ExcelProcessingOptions>>();
         _optionsMock.Setup(x => x.Value).Returns(new ExcelProcessingOptions());
+        _memoryCache = new MemoryCache(new MemoryCacheOptions());
+        _metrics = new InMemoryMetricsService();
 
-        _service = new LinkExtractorService(_loggerMock.Object, _optionsMock.Object);
+        _service = new LinkExtractorService(_loggerMock.Object, _optionsMock.Object, _memoryCache, _metrics);
     }
 
     [Fact]

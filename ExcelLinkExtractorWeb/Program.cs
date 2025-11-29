@@ -1,6 +1,7 @@
 using ExcelLinkExtractorWeb.Components;
 using ExcelLinkExtractorWeb.Configuration;
 using ExcelLinkExtractorWeb.Services;
+using ExcelLinkExtractorWeb.Services.Metrics;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.Options;
@@ -15,6 +16,7 @@ builder.Services.AddOptions<ExcelProcessingOptions>()
     .Validate(options => options.MaxUrlLength <= 10000, "MaxUrlLength must be <= 10000.")
     .ValidateOnStart();
 
+builder.Services.AddMemoryCache();
 builder.Services.AddResponseCaching();
 // Add services to the container.
 builder.Services.AddRazorComponents()
@@ -24,6 +26,7 @@ builder.Services.AddRazorComponents()
 builder.Services.AddScoped<ILinkExtractorService, LinkExtractorService>();
 builder.Services.AddHealthChecks()
     .AddCheck<SystemHealthCheck>("system_health");
+builder.Services.AddSingleton<IMetricsService, InMemoryMetricsService>();
 
 // Add rate limiting - read from configuration
 var excelOptions = builder.Configuration

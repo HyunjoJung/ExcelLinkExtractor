@@ -2,6 +2,7 @@ using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Spreadsheet;
 using ExcelLinkExtractorWeb.Configuration;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -15,6 +16,8 @@ public partial class LinkExtractorService : ILinkExtractorService
 {
     private readonly ILogger<LinkExtractorService> _logger;
     private readonly ExcelProcessingOptions _options;
+    private readonly IMemoryCache _cache;
+    private readonly Services.Metrics.IMetricsService _metrics;
 
     // Excel file signatures (magic bytes)
     private static readonly byte[] XlsxSignature = { 0x50, 0x4B, 0x03, 0x04 }; // PK.. (ZIP format)
@@ -24,10 +27,14 @@ public partial class LinkExtractorService : ILinkExtractorService
 
     public LinkExtractorService(
         ILogger<LinkExtractorService> logger,
-        IOptions<ExcelProcessingOptions> options)
+        IOptions<ExcelProcessingOptions> options,
+        IMemoryCache cache,
+        Services.Metrics.IMetricsService metrics)
     {
         _logger = logger;
         _options = options.Value;
+        _cache = cache;
+        _metrics = metrics;
     }
 
     /// <summary>
@@ -228,11 +235,12 @@ public partial class LinkExtractorService : ILinkExtractorService
                     }
                 }
 
-                result.TotalRows = (int)(newRowIndex - 2);
-                result.LinksFound = result.Links.Count;
+            result.TotalRows = (int)(newRowIndex - 2);
+            result.LinksFound = result.Links.Count;
+            _metrics.RecordFileProcessed(fileStream.Length, result.TotalRows, TimeSpan.Zero);
 
-                // Add column widths
-                var columns = new Columns();
+            // Add column widths
+            var columns = new Columns();
                 columns.Append(new Column { Min = 1, Max = 1, Width = 30, CustomWidth = true });
                 columns.Append(new Column { Min = 2, Max = 2, Width = 50, CustomWidth = true });
                 newWorksheetPart.Worksheet.InsertBefore(columns, newSheetData);
@@ -248,22 +256,22 @@ public partial class LinkExtractorService : ILinkExtractorService
         catch (InvalidFileFormatException ex)
         {
             _logger.LogError(ex, "Invalid file format during link extraction");
-            result.ErrorMessage = ex.GetFullMessage();
+            result.ErrorMessage = $"E001: {ex.GetFullMessage()}";
         }
         catch (InvalidColumnException ex)
         {
             _logger.LogError(ex, "Column not found during link extraction");
-            result.ErrorMessage = ex.GetFullMessage();
+            result.ErrorMessage = $"E002: {ex.GetFullMessage()}";
         }
         catch (ExcelProcessingException ex)
         {
             _logger.LogError(ex, "Excel processing error during link extraction");
-            result.ErrorMessage = ex.GetFullMessage();
+            result.ErrorMessage = $"E003: {ex.GetFullMessage()}";
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unexpected error during link extraction");
-            result.ErrorMessage = $"Error processing file: {ex.Message}";
+            result.ErrorMessage = $"E999: Error processing file: {ex.Message}";
         }
 
         return result;
@@ -275,6 +283,11 @@ public partial class LinkExtractorService : ILinkExtractorService
     /// <returns>Byte array containing the template Excel file</returns>
     public byte[] CreateTemplate()
     {
+        if (_cache.TryGetValue("template:extract", out byte[]? cachedTemplate))
+        {
+            return cachedTemplate;
+        }
+
         var stream = new MemoryStream();
         using (var document = SpreadsheetDocument.Create(stream, SpreadsheetDocumentType.Workbook))
         {
@@ -364,7 +377,13 @@ public partial class LinkExtractorService : ILinkExtractorService
             workbookPart.Workbook.Save();
         }
 
-        return stream.ToArray();
+        var bytes = stream.ToArray();
+        _cache.Set("template:extract", bytes, new MemoryCacheEntryOptions
+        {
+            SlidingExpiration = TimeSpan.FromHours(2)
+        });
+
+        return bytes;
     }
 
     /// <summary>
@@ -373,6 +392,11 @@ public partial class LinkExtractorService : ILinkExtractorService
     /// <returns>Byte array containing the template Excel file</returns>
     public byte[] CreateMergeTemplate()
     {
+        if (_cache.TryGetValue("template:merge", out byte[]? cachedTemplate))
+        {
+            return cachedTemplate;
+        }
+
         var stream = new MemoryStream();
         using (var document = SpreadsheetDocument.Create(stream, SpreadsheetDocumentType.Workbook))
         {
@@ -462,7 +486,13 @@ public partial class LinkExtractorService : ILinkExtractorService
             workbookPart.Workbook.Save();
         }
 
-        return stream.ToArray();
+        var bytes = stream.ToArray();
+        _cache.Set("template:merge", bytes, new MemoryCacheEntryOptions
+        {
+            SlidingExpiration = TimeSpan.FromHours(2)
+        });
+
+        return bytes;
     }
 
     /// <summary>
@@ -656,13 +686,15 @@ public partial class LinkExtractorService : ILinkExtractorService
                     newRowIndex++;
                 }
 
-                result.TotalRows = (int)(newRowIndex - 2);
+            result.TotalRows = (int)(newRowIndex - 2);
 
-                // Add hyperlinks if any
-                if (hyperlinks.ChildElements.Count > 0)
-                {
-                    newWorksheetPart.Worksheet.Append(hyperlinks);
-                }
+            // Add hyperlinks if any
+            if (hyperlinks.ChildElements.Count > 0)
+            {
+                newWorksheetPart.Worksheet.Append(hyperlinks);
+            }
+
+            _metrics.RecordFileProcessed(fileStream.Length, result.TotalRows, TimeSpan.Zero);
 
                 // Column widths
                 var columns = new Columns();
@@ -681,22 +713,22 @@ public partial class LinkExtractorService : ILinkExtractorService
         catch (InvalidFileFormatException ex)
         {
             _logger.LogError(ex, "Invalid file format during link merge");
-            result.ErrorMessage = ex.GetFullMessage();
+            result.ErrorMessage = $"E001: {ex.GetFullMessage()}";
         }
         catch (InvalidColumnException ex)
         {
             _logger.LogError(ex, "Column not found during link merge");
-            result.ErrorMessage = ex.GetFullMessage();
+            result.ErrorMessage = $"E002: {ex.GetFullMessage()}";
         }
         catch (ExcelProcessingException ex)
         {
             _logger.LogError(ex, "Excel processing error during link merge");
-            result.ErrorMessage = ex.GetFullMessage();
+            result.ErrorMessage = $"E003: {ex.GetFullMessage()}";
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unexpected error during link merge");
-            result.ErrorMessage = $"Error processing file: {ex.Message}";
+            result.ErrorMessage = $"E999: Error processing file: {ex.Message}";
         }
 
         return result;
