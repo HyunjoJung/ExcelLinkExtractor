@@ -1,5 +1,55 @@
+:root {
+    /* Light mode (default) */
+    --bg-color: #ffffff;
+    --text-color: #212529;
+    --text-muted: #6c757d;
+    --card-bg: #ffffff;
+    --border-color: #dee2e6;
+    --primary-color: #0d6efd;
+    --success-color: #198754;
+    --danger-color: #dc3545;
+    --skeleton-from: #f0f0f0;
+    --skeleton-via: #e0e0e0;
+    --skeleton-to: #f0f0f0;
+}
+
+[data-theme="dark"] {
+    /* Dark mode */
+    --bg-color: #1a1a1a;
+    --text-color: #e9ecef;
+    --text-muted: #adb5bd;
+    --card-bg: #2d2d2d;
+    --border-color: #495057;
+    --primary-color: #3d8bfd;
+    --success-color: #28a745;
+    --danger-color: #e74c3c;
+    --skeleton-from: #2d2d2d;
+    --skeleton-via: #3d3d3d;
+    --skeleton-to: #2d2d2d;
+}
+
+/* Respect system preference if no manual selection */
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        --bg-color: #1a1a1a;
+        --text-color: #e9ecef;
+        --text-muted: #adb5bd;
+        --card-bg: #2d2d2d;
+        --border-color: #495057;
+        --primary-color: #3d8bfd;
+        --success-color: #28a745;
+        --danger-color: #e74c3c;
+        --skeleton-from: #2d2d2d;
+        --skeleton-via: #3d3d3d;
+        --skeleton-to: #2d2d2d;
+    }
+}
+
 html, body {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 a, .btn-link {
@@ -82,7 +132,7 @@ h1:focus {
 
 /* Loading skeleton animations */
 .skeleton {
-    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background: linear-gradient(90deg, var(--skeleton-from) 25%, var(--skeleton-via) 50%, var(--skeleton-to) 75%);
     background-size: 200% 100%;
     animation: loading 1.5s ease-in-out infinite;
     border-radius: 0.25rem;
@@ -111,4 +161,77 @@ h1:focus {
 .skeleton-input {
     height: 2.5rem;
     margin-bottom: 1rem;
+}
+
+/* Dark mode toggle */
+.theme-toggle {
+    background: none;
+    border: none;
+    color: var(--text-color);
+    cursor: pointer;
+    font-size: 1.25rem;
+    padding: 0.5rem;
+    border-radius: 0.25rem;
+    transition: background-color 0.2s ease;
+}
+
+.theme-toggle:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.theme-toggle:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+/* Dark mode adjustments for Bootstrap components */
+[data-theme="dark"] .card,
+[data-theme="dark"] .card-body {
+    background-color: var(--card-bg);
+    color: var(--text-color);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .text-muted {
+    color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .border,
+[data-theme="dark"] .card,
+[data-theme="dark"] .alert {
+    border-color: var(--border-color) !important;
+}
+
+[data-theme="dark"] .bg-light {
+    background-color: var(--card-bg) !important;
+    color: var(--text-color) !important;
+}
+
+[data-theme="dark"] .table {
+    color: var(--text-color);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .table-light {
+    background-color: var(--card-bg);
+    color: var(--text-color);
+}
+
+/* System preference dark mode */
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .card,
+    :root:not([data-theme="light"]) .card-body {
+        background-color: var(--card-bg);
+        color: var(--text-color);
+        border-color: var(--border-color);
+    }
+
+    :root:not([data-theme="light"]) .text-muted {
+        color: var(--text-muted) !important;
+    }
+
+    :root:not([data-theme="light"]) .bg-light {
+        background-color: var(--card-bg) !important;
+        color: var(--text-color) !important;
+    }
 }
