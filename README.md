@@ -8,7 +8,7 @@ Free online tool to extract hyperlinks from spreadsheet files and merge Title + 
 
 🔗 **Live Site**: [sheetlink.hyunjo.uk](https://sheetlink.hyunjo.uk)
 
-![Lighthouse Score](docs/lighthouse-score.jpg)
+![SheetLink Banner](ExcelLinkExtractorWeb/wwwroot/og-image.png)
 
 </div>
 
@@ -79,6 +79,10 @@ All URLs are validated and sanitized:
 - Supports `.xlsx` and `.xls` formats
 - 10MB file size limit
 - Preserves cell styling where possible
+
+## Performance
+
+![Lighthouse Score](docs/lighthouse-score.jpg)
 
 ## Contributing
 
