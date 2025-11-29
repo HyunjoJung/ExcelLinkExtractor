@@ -1,7 +1,9 @@
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Spreadsheet;
+using ExcelLinkExtractorWeb.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace ExcelLinkExtractorWeb.Services;
 
@@ -9,14 +11,10 @@ namespace ExcelLinkExtractorWeb.Services;
 /// Service for extracting and merging hyperlinks in Excel spreadsheets.
 /// Provides functionality to extract URLs from cells and merge Title + URL columns into clickable hyperlinks.
 /// </summary>
-public class LinkExtractorService
+public class LinkExtractorService : ILinkExtractorService
 {
     private readonly ILogger<LinkExtractorService> _logger;
-
-    // File validation constants
-    private const int MaxFileSizeBytes = 10 * 1024 * 1024; // 10MB
-    private const int MaxHeaderSearchRows = 10;
-    private const int MaxUrlLength = 2000; // Excel hyperlink limit (~2083 chars, use 2000 for safety)
+    private readonly ExcelProcessingOptions _options;
 
     // Excel file signatures (magic bytes)
     private static readonly byte[] XlsxSignature = { 0x50, 0x4B, 0x03, 0x04 }; // PK.. (ZIP format)
@@ -25,9 +23,12 @@ public class LinkExtractorService
     // Cached stylesheet for performance (created once, reused across all operations)
     private static readonly Lazy<Stylesheet> CachedStylesheet = new Lazy<Stylesheet>(() => CreateStylesheet());
 
-    public LinkExtractorService(ILogger<LinkExtractorService> logger)
+    public LinkExtractorService(
+        ILogger<LinkExtractorService> logger,
+        IOptions<ExcelProcessingOptions> options)
     {
         _logger = logger;
+        _options = options.Value;
     }
 
     /// <summary>
@@ -39,10 +40,10 @@ public class LinkExtractorService
     private void ValidateExcelFile(Stream fileStream, string fileName = "unknown")
     {
         // Validate file size
-        if (fileStream.Length > MaxFileSizeBytes)
+        if (fileStream.Length > _options.MaxFileSizeBytes)
         {
             _logger.LogWarning("File {FileName} exceeds maximum size: {FileSize} bytes", fileName, fileStream.Length);
-            throw new InvalidFileFormatException($"File size exceeds maximum allowed size of {MaxFileSizeBytes / (1024 * 1024)}MB.");
+            throw new InvalidFileFormatException($"File size exceeds maximum allowed size of {_options.MaxFileSizeMB}MB.");
         }
 
         if (fileStream.Length == 0)
@@ -152,7 +153,7 @@ public class LinkExtractorService
             int? headerRowIndex = null;
             int? targetColumnIndex = null;
 
-            foreach (var row in sheetData.Elements<Row>().Take(MaxHeaderSearchRows))
+            foreach (var row in sheetData.Elements<Row>().Take(_options.MaxHeaderSearchRows))
             {
                 foreach (var cell in row.Elements<Cell>())
                 {
@@ -571,7 +572,7 @@ public class LinkExtractorService
             int? titleColumnIndex = null;
             int? urlColumnIndex = null;
 
-            foreach (var row in sheetData.Elements<Row>().Take(MaxHeaderSearchRows))
+            foreach (var row in sheetData.Elements<Row>().Take(_options.MaxHeaderSearchRows))
             {
                 foreach (var cell in row.Elements<Cell>())
                 {
@@ -891,7 +892,7 @@ public class LinkExtractorService
         url = url.Trim();
 
         // Excel hyperlink limit
-        if (url.Length > MaxUrlLength)
+        if (url.Length > 2000) // Using hardcoded value as SanitizeUrl is static
             return null;
 
         // Add protocol if missing

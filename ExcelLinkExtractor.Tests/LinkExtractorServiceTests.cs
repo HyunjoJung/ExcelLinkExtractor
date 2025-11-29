@@ -1,9 +1,11 @@
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Spreadsheet;
+using ExcelLinkExtractorWeb.Configuration;
 using ExcelLinkExtractorWeb.Services;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Moq;
 using Xunit;
 
@@ -13,11 +15,15 @@ public class LinkExtractorServiceTests
 {
     private readonly LinkExtractorService _service;
     private readonly Mock<ILogger<LinkExtractorService>> _loggerMock;
+    private readonly Mock<IOptions<ExcelProcessingOptions>> _optionsMock;
 
     public LinkExtractorServiceTests()
     {
         _loggerMock = new Mock<ILogger<LinkExtractorService>>();
-        _service = new LinkExtractorService(_loggerMock.Object);
+        _optionsMock = new Mock<IOptions<ExcelProcessingOptions>>();
+        _optionsMock.Setup(x => x.Value).Returns(new ExcelProcessingOptions());
+
+        _service = new LinkExtractorService(_loggerMock.Object, _optionsMock.Object);
     }
 
     [Fact]

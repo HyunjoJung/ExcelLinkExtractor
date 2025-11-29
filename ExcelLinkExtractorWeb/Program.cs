@@ -1,27 +1,36 @@
 using ExcelLinkExtractorWeb.Components;
+using ExcelLinkExtractorWeb.Configuration;
 using ExcelLinkExtractorWeb.Services;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Add configuration
+builder.Services.Configure<ExcelProcessingOptions>(
+    builder.Configuration.GetSection(ExcelProcessingOptions.SectionName));
+
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-// Register LinkExtractor service
-builder.Services.AddScoped<LinkExtractorService>();
+// Register LinkExtractor service with interface
+builder.Services.AddScoped<ILinkExtractorService, LinkExtractorService>();
 
-// Add rate limiting
+// Add rate limiting - read from configuration
+var excelOptions = builder.Configuration
+    .GetSection(ExcelProcessingOptions.SectionName)
+    .Get<ExcelProcessingOptions>() ?? new ExcelProcessingOptions();
+
 builder.Services.AddRateLimiter(options =>
 {
-    // Global rate limit: 100 requests per minute per IP
+    // Global rate limit: configurable requests per minute per IP
     options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
         RateLimitPartition.GetFixedWindowLimiter(
             partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
             factory: partition => new FixedWindowRateLimiterOptions
             {
-                PermitLimit = 100,
+                PermitLimit = excelOptions.RateLimitPerMinute,
                 Window = TimeSpan.FromMinutes(1),
                 QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
                 QueueLimit = 0
