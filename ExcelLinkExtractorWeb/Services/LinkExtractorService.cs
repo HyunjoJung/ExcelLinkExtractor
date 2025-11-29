@@ -43,13 +43,19 @@ public class LinkExtractorService : ILinkExtractorService
         if (fileStream.Length > _options.MaxFileSizeBytes)
         {
             _logger.LogWarning("File {FileName} exceeds maximum size: {FileSize} bytes", fileName, fileStream.Length);
-            throw new InvalidFileFormatException($"File size exceeds maximum allowed size of {_options.MaxFileSizeMB}MB.");
+            throw new InvalidFileFormatException(
+                message: $"File size ({fileStream.Length / 1024 / 1024}MB) exceeds maximum allowed size of {_options.MaxFileSizeMB}MB.",
+                recoverySuggestion: "💡 Tip: Try reducing the file size by removing unnecessary columns, rows, or formatting. Or split your data into smaller files."
+            );
         }
 
         if (fileStream.Length == 0)
         {
             _logger.LogWarning("File {FileName} is empty", fileName);
-            throw new InvalidFileFormatException("File is empty.");
+            throw new InvalidFileFormatException(
+                message: "File is empty (0 bytes).",
+                recoverySuggestion: "💡 Tip: Make sure the file uploaded correctly. Try re-saving your Excel file and uploading again."
+            );
         }
 
         // Validate file signature (magic bytes)
@@ -63,7 +69,10 @@ public class LinkExtractorService : ILinkExtractorService
         if (bytesRead < 4)
         {
             _logger.LogWarning("File {FileName} is too small to be a valid Excel file", fileName);
-            throw new InvalidFileFormatException("File is too small to be a valid Excel file.");
+            throw new InvalidFileFormatException(
+                message: "File is too small to be a valid Excel file.",
+                recoverySuggestion: "💡 Tip: The file may be corrupted. Try opening it in Excel and re-saving as .xlsx format."
+            );
         }
 
         // Check for .xlsx signature (ZIP/PK format)
@@ -86,7 +95,10 @@ public class LinkExtractorService : ILinkExtractorService
         if (!isXlsx && !isXls)
         {
             _logger.LogWarning("File {FileName} has invalid Excel file signature", fileName);
-            throw new InvalidFileFormatException("File is not a valid Excel file (.xlsx or .xls). Please upload a valid Excel spreadsheet.");
+            throw new InvalidFileFormatException(
+                message: "File is not a valid Excel file (.xlsx or .xls).",
+                recoverySuggestion: "💡 Tip: Make sure the file is actually an Excel file. If it's a CSV or other format, open it in Excel and save it as '.xlsx' format."
+            );
         }
 
         _logger.LogInformation("File {FileName} validated successfully ({FileSize} bytes, {FileType})",
@@ -171,7 +183,7 @@ public class LinkExtractorService : ILinkExtractorService
             if (targetColumnIndex == null || headerRowIndex == null)
             {
                 _logger.LogWarning("Column '{ColumnName}' not found in spreadsheet", linkColumnName);
-                throw new InvalidColumnException(linkColumnName);
+                throw new InvalidColumnException(linkColumnName, _options.MaxHeaderSearchRows);
             }
 
             _logger.LogDebug("Found column '{ColumnName}' at column index {ColumnIndex}, header row {HeaderRow}",
@@ -311,12 +323,17 @@ public class LinkExtractorService : ILinkExtractorService
         catch (InvalidFileFormatException ex)
         {
             _logger.LogError(ex, "Invalid file format during link extraction");
-            result.ErrorMessage = ex.Message;
+            result.ErrorMessage = ex.GetFullMessage();
         }
         catch (InvalidColumnException ex)
         {
             _logger.LogError(ex, "Column not found during link extraction");
-            result.ErrorMessage = ex.Message;
+            result.ErrorMessage = ex.GetFullMessage();
+        }
+        catch (ExcelProcessingException ex)
+        {
+            _logger.LogError(ex, "Excel processing error during link extraction");
+            result.ErrorMessage = ex.GetFullMessage();
         }
         catch (Exception ex)
         {
@@ -596,11 +613,16 @@ public class LinkExtractorService : ILinkExtractorService
                     titleColumnIndex != null, urlColumnIndex != null);
 
                 if (titleColumnIndex == null && urlColumnIndex == null)
-                    throw new ExcelProcessingException("Could not find 'Title' and 'URL' columns in the spreadsheet.");
+                {
+                    throw new ExcelProcessingException(
+                        message: $"Could not find 'Title' and 'URL' columns in the first {_options.MaxHeaderSearchRows} rows.",
+                        recoverySuggestion: "💡 Tip: Make sure your Excel file has both 'Title' and 'URL' column headers (case-sensitive) in the first few rows. Download the sample template to see the expected format."
+                    );
+                }
                 else if (titleColumnIndex == null)
-                    throw new InvalidColumnException("Title");
+                    throw new InvalidColumnException("Title", _options.MaxHeaderSearchRows);
                 else
-                    throw new InvalidColumnException("URL");
+                    throw new InvalidColumnException("URL", _options.MaxHeaderSearchRows);
             }
 
             _logger.LogDebug("Found columns - Title: {TitleColumn}, URL: {UrlColumn}, Header row: {HeaderRow}",
@@ -734,17 +756,17 @@ public class LinkExtractorService : ILinkExtractorService
         catch (InvalidFileFormatException ex)
         {
             _logger.LogError(ex, "Invalid file format during link merge");
-            result.ErrorMessage = ex.Message;
+            result.ErrorMessage = ex.GetFullMessage();
         }
         catch (InvalidColumnException ex)
         {
             _logger.LogError(ex, "Column not found during link merge");
-            result.ErrorMessage = ex.Message;
+            result.ErrorMessage = ex.GetFullMessage();
         }
         catch (ExcelProcessingException ex)
         {
             _logger.LogError(ex, "Excel processing error during link merge");
-            result.ErrorMessage = ex.Message;
+            result.ErrorMessage = ex.GetFullMessage();
         }
         catch (Exception ex)
         {
