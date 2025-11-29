@@ -2,6 +2,7 @@ using ExcelLinkExtractorWeb.Components;
 using ExcelLinkExtractorWeb.Configuration;
 using ExcelLinkExtractorWeb.Services;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.Options;
 using System.Threading.RateLimiting;
 
@@ -14,6 +15,7 @@ builder.Services.AddOptions<ExcelProcessingOptions>()
     .Validate(options => options.MaxUrlLength <= 10000, "MaxUrlLength must be <= 10000.")
     .ValidateOnStart();
 
+builder.Services.AddResponseCaching();
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
@@ -84,10 +86,21 @@ app.Use(async (context, next) =>
 
 // Enable rate limiting
 app.UseRateLimiter();
-
 app.UseAntiforgery();
 
-app.UseStaticFiles();
+app.UseResponseCaching();
+
+var staticFileOptions = new StaticFileOptions
+{
+    OnPrepareResponse = ctx =>
+    {
+        // Cache static assets for one week
+        ctx.Context.Response.Headers["Cache-Control"] = "public,max-age=604800";
+        ctx.Context.Response.Headers["Vary"] = "Accept-Encoding";
+    }
+};
+
+app.UseStaticFiles(staticFileOptions);
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();

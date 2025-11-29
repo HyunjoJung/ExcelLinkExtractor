@@ -53,6 +53,10 @@ dotnet publish ExcelLinkExtractorWeb -c Release -o ./publish
 
 The app exposes a basic health endpoint at `/health` (memory/disk check) for probes/load balancers.
 
+### Caching
+
+Static assets are cacheable (1 week). Response caching is enabled for GET requests where applicable.
+
 ## Development & Tests
 
 ```bash
