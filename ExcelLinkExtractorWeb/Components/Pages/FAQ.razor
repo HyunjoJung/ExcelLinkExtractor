@@ -1,4 +1,5 @@
 @page "/faq"
+@using System.Text.Json
 
 <PageTitle>FAQ - SheetLink</PageTitle>
 
@@ -8,68 +9,7 @@
 
     <!-- FAQ Schema -->
     <script type="application/ld+json">
-    {
-        "@@context": "https://schema.org",
-        "@@type": "FAQPage",
-        "mainEntity": [
-            {
-                "@@type": "Question",
-                "name": "Is my file uploaded to a server?",
-                "acceptedAnswer": {
-                    "@@type": "Answer",
-                    "text": "No, all processing happens in-memory on the server. Your files are never stored permanently. Once processing is complete, all data is immediately discarded."
-                }
-            },
-            {
-                "@@type": "Question",
-                "name": "What file formats are supported?",
-                "acceptedAnswer": {
-                    "@@type": "Answer",
-                    "text": "We support .xlsx and .xls file formats. The maximum file size is 10MB."
-                }
-            },
-            {
-                "@@type": "Question",
-                "name": "How do I extract hyperlinks from spreadsheets?",
-                "acceptedAnswer": {
-                    "@@type": "Answer",
-                    "text": "1. Download the sample or prepare your file with a 'Title' column containing hyperlinks. 2. Upload the file using the upload button. 3. The tool will automatically extract all hyperlinks and display them. 4. Download the result file with extracted URLs."
-                }
-            },
-            {
-                "@@type": "Question",
-                "name": "Can I merge Title and URL into clickable links?",
-                "acceptedAnswer": {
-                    "@@type": "Answer",
-                    "text": "Yes! Use the 'Link Merger' feature. Upload a file with 'Title' and 'URL' columns, and the tool will create a file where the Title cells contain clickable hyperlinks to the URLs."
-                }
-            },
-            {
-                "@@type": "Question",
-                "name": "Is this tool free?",
-                "acceptedAnswer": {
-                    "@@type": "Answer",
-                    "text": "Yes, SheetLink is completely free to use. No registration, no subscription, no hidden fees."
-                }
-            },
-            {
-                "@@type": "Question",
-                "name": "Does SheetLink support Excel files?",
-                "acceptedAnswer": {
-                    "@@type": "Answer",
-                    "text": "Yes! SheetLink fully supports Microsoft Excel files including .xlsx (Excel 2007 and later) and .xls (Excel 97-2003). You can extract hyperlinks from Excel spreadsheets and merge Title + URL columns into clickable hyperlinks within Excel files."
-                }
-            },
-            {
-                "@@type": "Question",
-                "name": "Is SheetLink affiliated with Microsoft?",
-                "acceptedAnswer": {
-                    "@@type": "Answer",
-                    "text": "No. SheetLink is an independent, open-source project and is not affiliated with, endorsed by, or sponsored by Microsoft Corporation. Excel and Microsoft Excel are trademarks of Microsoft Corporation. This tool provides functionality to work with Excel file formats but is developed and maintained independently using open-source libraries (DocumentFormat.OpenXml)."
-                }
-            }
-        ]
-    }
+    @GenerateFaqSchema()
     </script>
 
     <style>
@@ -146,89 +86,118 @@
     </div>
 
     <div class="faq-list">
-        <div class="faq-item">
-            <details open>
-                <summary>How do I extract hyperlinks from spreadsheets?</summary>
-                <div class="faq-content">
-                    <ol class="mb-0">
-                        <li>Download the sample or prepare your file with a 'Title' column containing hyperlinks</li>
-                        <li>Upload the file using the upload button</li>
-                        <li>The tool will automatically extract all hyperlinks and display them</li>
-                        <li>Download the result file with extracted URLs</li>
-                    </ol>
-                </div>
-            </details>
-        </div>
-
-        <div class="faq-item">
-            <details>
-                <summary>Is my file uploaded to a server?</summary>
-                <div class="faq-content">
-                    <strong>No, all processing happens in-memory on the server.</strong> Your files are never stored permanently. Once processing is complete, all data is immediately discarded. We take your privacy seriously.
-                    <div class="mt-3 p-3 bg-light rounded">
-                        <strong>🔍 Verify yourself:</strong> This is an open-source project. You can review the source code on GitHub to confirm that no files are saved to disk.
-                        <div class="mt-2">
-                            <a href="https://github.com/HyunjoJung/sheetlink" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-primary">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-github me-1" viewBox="0 0 16 16">
-                                    <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
-                                </svg>
-                                View Source Code on GitHub
-                            </a>
-                        </div>
+        @foreach (var (faq, index) in faqItems.Select((item, idx) => (item, idx)))
+        {
+            <div class="faq-item">
+                <details @attributes="@(index == 0 ? new Dictionary<string, object> { ["open"] = true } : null)">
+                    <summary>@faq.Question</summary>
+                    <div class="faq-content">
+                        @((MarkupString)faq.HtmlAnswer)
                     </div>
-                </div>
-            </details>
-        </div>
-
-        <div class="faq-item">
-            <details>
-                <summary>What file formats are supported?</summary>
-                <div class="faq-content">
-                    We support <strong>.xlsx</strong> and <strong>.xls</strong> file formats. The maximum file size is <strong>10MB</strong>.
-                </div>
-            </details>
-        </div>
-
-        <div class="faq-item">
-            <details>
-                <summary>Can I merge Title and URL into clickable links?</summary>
-                <div class="faq-content">
-                    <strong>Yes!</strong> Use the <a href="/merge">Link Merger</a> feature. Upload a file with 'Title' and 'URL' columns, and the tool will create a file where the Title cells contain clickable hyperlinks to the URLs.
-                </div>
-            </details>
-        </div>
-
-        <div class="faq-item">
-            <details>
-                <summary>Is this tool free?</summary>
-                <div class="faq-content">
-                    <strong>Yes, SheetLink is completely free to use.</strong> No registration, no subscription, no hidden fees.
-                </div>
-            </details>
-        </div>
-
-        <div class="faq-item">
-            <details>
-                <summary>Does SheetLink support Excel files?</summary>
-                <div class="faq-content">
-                    <strong>Yes!</strong> SheetLink fully supports Microsoft Excel files including:
-                    <ul class="mt-2 mb-0">
-                        <li><strong>.xlsx</strong> - Excel 2007 and later</li>
-                        <li><strong>.xls</strong> - Excel 97-2003</li>
-                    </ul>
-                    <p class="mt-2 mb-0">You can extract hyperlinks from Excel spreadsheets and merge Title + URL columns into clickable hyperlinks within Excel files.</p>
-                </div>
-            </details>
-        </div>
-
-        <div class="faq-item">
-            <details>
-                <summary>Is SheetLink affiliated with Microsoft?</summary>
-                <div class="faq-content">
-                    <strong>No.</strong> SheetLink is an independent, open-source project and is <strong>not affiliated with, endorsed by, or sponsored by Microsoft Corporation</strong>.
-                    <p class="mt-2 mb-0">"Excel" and "Microsoft Excel" are trademarks of Microsoft Corporation. This tool provides functionality to work with Excel file formats (.xlsx, .xls) but is developed and maintained independently. All Excel-related file processing is performed using open-source libraries (DocumentFormat.OpenXml).</p>
-                </div>
-            </details>
-        </div>
+                </details>
+            </div>
+        }
     </div>
 </div>
+
+@code {
+    private record FaqItem(string Question, string SchemaAnswer, string HtmlAnswer);
+
+    private readonly List<FaqItem> faqItems = new()
+    {
+        new FaqItem(
+            Question: "How do I extract hyperlinks from spreadsheets?",
+            SchemaAnswer: "1. Download the sample or prepare your file with a 'Title' column containing hyperlinks. 2. Upload the file using the upload button. 3. The tool will automatically extract all hyperlinks and display them. 4. Download the result file with extracted URLs.",
+            HtmlAnswer: @"
+                <ol class=""mb-0"">
+                    <li>Download the sample or prepare your file with a 'Title' column containing hyperlinks</li>
+                    <li>Upload the file using the upload button</li>
+                    <li>The tool will automatically extract all hyperlinks and display them</li>
+                    <li>Download the result file with extracted URLs</li>
+                </ol>"
+        ),
+        new FaqItem(
+            Question: "Is my file uploaded to a server?",
+            SchemaAnswer: "No, all processing happens in-memory on the server. Your files are never stored permanently. Once processing is complete, all data is immediately discarded.",
+            HtmlAnswer: @"
+                <strong>No, all processing happens in-memory on the server.</strong> Your files are never stored permanently. Once processing is complete, all data is immediately discarded. We take your privacy seriously.
+                <div class=""mt-3 p-3 bg-light rounded"">
+                    <strong>🔍 Verify yourself:</strong> This is an open-source project. You can review the source code on GitHub to confirm that no files are saved to disk.
+                    <div class=""mt-2"">
+                        <a href=""https://github.com/HyunjoJung/sheetlink"" target=""_blank"" rel=""noopener noreferrer"" class=""btn btn-sm btn-outline-primary"">
+                            <svg xmlns=""http://www.w3.org/2000/svg"" width=""16"" height=""16"" fill=""currentColor"" class=""bi bi-github me-1"" viewBox=""0 0 16 16"">
+                                <path d=""M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z""/>
+                            </svg>
+                            View Source Code on GitHub
+                        </a>
+                    </div>
+                </div>"
+        ),
+        new FaqItem(
+            Question: "What file formats are supported?",
+            SchemaAnswer: "We support .xlsx and .xls file formats. The maximum file size is 10MB.",
+            HtmlAnswer: @"We support <strong>.xlsx</strong> and <strong>.xls</strong> file formats. The maximum file size is <strong>10MB</strong>."
+        ),
+        new FaqItem(
+            Question: "Can I merge Title and URL into clickable links?",
+            SchemaAnswer: "Yes! Use the 'Link Merger' feature. Upload a file with 'Title' and 'URL' columns, and the tool will create a file where the Title cells contain clickable hyperlinks to the URLs.",
+            HtmlAnswer: @"<strong>Yes!</strong> Use the <a href=""/merge"">Link Merger</a> feature. Upload a file with 'Title' and 'URL' columns, and the tool will create a file where the Title cells contain clickable hyperlinks to the URLs."
+        ),
+        new FaqItem(
+            Question: "Is this tool free?",
+            SchemaAnswer: "Yes, SheetLink is completely free to use. No registration, no subscription, no hidden fees.",
+            HtmlAnswer: @"<strong>Yes, SheetLink is completely free to use.</strong> No registration, no subscription, no hidden fees."
+        ),
+        new FaqItem(
+            Question: "Does SheetLink support Excel files?",
+            SchemaAnswer: "Yes! SheetLink fully supports Microsoft Excel files including .xlsx (Excel 2007 and later) and .xls (Excel 97-2003). You can extract hyperlinks from Excel spreadsheets and merge Title + URL columns into clickable hyperlinks within Excel files.",
+            HtmlAnswer: @"
+                <strong>Yes!</strong> SheetLink fully supports Microsoft Excel files including:
+                <ul class=""mt-2 mb-0"">
+                    <li><strong>.xlsx</strong> - Excel 2007 and later</li>
+                    <li><strong>.xls</strong> - Excel 97-2003</li>
+                </ul>
+                <p class=""mt-2 mb-0"">You can extract hyperlinks from Excel spreadsheets and merge Title + URL columns into clickable hyperlinks within Excel files.</p>"
+        ),
+        new FaqItem(
+            Question: "Is SheetLink affiliated with Microsoft?",
+            SchemaAnswer: "No. SheetLink is an independent, open-source project and is not affiliated with, endorsed by, or sponsored by Microsoft Corporation. Excel and Microsoft Excel are trademarks of Microsoft Corporation. This tool provides functionality to work with Excel file formats but is developed and maintained independently using open-source libraries (DocumentFormat.OpenXml).",
+            HtmlAnswer: @"
+                <strong>No.</strong> SheetLink is an independent, open-source project and is <strong>not affiliated with, endorsed by, or sponsored by Microsoft Corporation</strong>.
+                <p class=""mt-2 mb-0"">""Excel"" and ""Microsoft Excel"" are trademarks of Microsoft Corporation. This tool provides functionality to work with Excel file formats (.xlsx, .xls) but is developed and maintained independently. All Excel-related file processing is performed using open-source libraries (DocumentFormat.OpenXml).</p>"
+        )
+    };
+
+    private string GenerateFaqSchema()
+    {
+        var schema = new
+        {
+            context = "https://schema.org",
+            type = "FAQPage",
+            mainEntity = faqItems.Select(faq => new
+            {
+                type = "Question",
+                name = faq.Question,
+                acceptedAnswer = new
+                {
+                    type = "Answer",
+                    text = faq.SchemaAnswer
+                }
+            }).ToArray()
+        };
+
+        var options = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            WriteIndented = true
+        };
+
+        var json = JsonSerializer.Serialize(schema, options);
+
+        // Replace property names for schema.org compatibility
+        json = json.Replace("\"context\":", "\"@context\":")
+                   .Replace("\"type\":", "\"@type\":");
+
+        return json;
+    }
+}

@@ -1,5 +1,7 @@
 @inherits LayoutComponentBase
 
+<a href="#main-content" class="skip-to-content">Skip to main content</a>
+
 <div class="d-flex flex-column min-vh-100">
     <!-- Header -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
@@ -19,7 +21,7 @@
     </nav>
 
     <!-- Main Content -->
-    <main class="flex-grow-1">
+    <main id="main-content" class="flex-grow-1" tabindex="-1">
         @Body
     </main>
 
