@@ -39,18 +39,19 @@ public class ExtractLinksPageTests : PageTest
     }
 
     [Test]
-    [Ignore("Flaky - timing sensitive test for Blazor interactive mode")]
     public async Task DownloadTemplateButton_ShouldBeVisible()
     {
         await Page.GotoAsync(BaseUrl);
 
-        // Wait for Blazor to be interactive
+        // Wait for Blazor to be interactive by waiting for skeleton to disappear
         await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
-        await Page.WaitForTimeoutAsync(4000);
 
-        // Check download template button - match exact text
+        // Wait for skeleton to be replaced by actual button
         var downloadButton = Page.Locator("button:has-text('Download Sample')");
-        await Expect(downloadButton).ToBeVisibleAsync(new() { Timeout = 15000 });
+
+        // Wait for button to appear (skeleton will be replaced)
+        await downloadButton.WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = 20000 });
+        await Expect(downloadButton).ToBeVisibleAsync();
     }
 
     [Test]
@@ -93,14 +94,14 @@ public class ExtractLinksPageTests : PageTest
     }
 
     [Test]
-    [Ignore("Flaky - depends on Blazor Server processing invalid file upload")]
     public async Task ErrorMessage_ShouldShowForInvalidFile()
     {
         await Page.GotoAsync(BaseUrl);
 
-        // Wait for interactive mode
+        // Wait for interactive mode - wait for actual button to appear
         await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
-        await Page.WaitForTimeoutAsync(4000);
+        var uploadButton = Page.Locator("button:has-text('Upload & Extract')");
+        await uploadButton.WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = 20000 });
 
         // Create a temporary text file (not Excel)
         var tempFile = Path.GetTempFileName();
@@ -113,12 +114,12 @@ public class ExtractLinksPageTests : PageTest
             await fileInput.SetInputFilesAsync(tempFile);
 
             // Click upload button
-            var uploadButton = Page.Locator("button:has-text('Upload & Extract')");
             await uploadButton.ClickAsync();
 
-            // Wait for error message with longer timeout
+            // Wait for error message
             var errorAlert = Page.Locator(".alert-danger");
-            await Expect(errorAlert).ToBeVisibleAsync(new() { Timeout = 15000 });
+            await errorAlert.WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = 20000 });
+            await Expect(errorAlert).ToBeVisibleAsync();
         }
         finally
         {

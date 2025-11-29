@@ -46,59 +46,62 @@ public class MergeLinksPageTests : PageTest
     }
 
     [Test]
-    [Ignore("Flaky - timing sensitive test with multiple page navigations")]
     public async Task NavigationBetweenPages_ShouldWork()
     {
         // Start on home page
         await Page.GotoAsync(BaseUrl);
         await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
-        await Page.WaitForTimeoutAsync(2000);
-        await Expect(Page.Locator("h1")).ToContainTextAsync("SheetLink", new() { Timeout = 10000 });
+
+        // Wait for h1 to have content
+        var h1 = Page.Locator("h1");
+        await h1.WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = 15000 });
+        await Expect(h1).ToContainTextAsync("SheetLink");
 
         // Navigate to Merge page
-        await Page.Locator("text=Merge Links").ClickAsync();
+        var mergeLink = Page.Locator("text=Merge Links");
+        await mergeLink.ClickAsync();
         await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
-        await Page.WaitForTimeoutAsync(2000);
+        await Page.WaitForTimeoutAsync(1000);
 
-        // Check we're on merge page
-        await Expect(Page.Locator("h1")).ToContainTextAsync("Link Merger", new() { Timeout = 10000 });
+        // Check we're on merge page - wait for heading to update
+        await Expect(h1).ToContainTextAsync("Link Merger", new() { Timeout = 15000 });
 
         // Navigate back to Extract page
-        await Page.Locator("text=Extract Links").ClickAsync();
+        var extractLink = Page.Locator("text=Extract Links");
+        await extractLink.ClickAsync();
         await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
-        await Page.WaitForTimeoutAsync(2000);
+        await Page.WaitForTimeoutAsync(1000);
 
         // Check we're back on home page
-        await Expect(Page.Locator("h1")).ToContainTextAsync("SheetLink", new() { Timeout = 10000 });
+        await Expect(h1).ToContainTextAsync("SheetLink", new() { Timeout = 15000 });
     }
 
     [Test]
-    [Ignore("Flaky - timing sensitive test for Blazor interactive mode")]
     public async Task MergePage_ShouldShowFileInput()
     {
         await Page.GotoAsync($"{BaseUrl}/merge");
 
         // Wait for interactive mode
-        await Page.WaitForTimeoutAsync(3000);
+        await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
 
-        // Check file input exists
+        // Check file input exists - wait for it to appear
         var fileInput = Page.Locator("input[type='file']");
+        await fileInput.WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = 20000 });
         await Expect(fileInput).ToBeVisibleAsync();
     }
 
     [Test]
-    [Ignore("Flaky - timing sensitive test for Blazor interactive mode")]
     public async Task MergePage_ShouldShowMergeButton()
     {
         await Page.GotoAsync($"{BaseUrl}/merge");
 
         // Wait for interactive mode
         await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
-        await Page.WaitForTimeoutAsync(4000);
 
         // Check merge button - use actual button text
         var mergeButton = Page.Locator("button:has-text('Upload & Merge')");
-        await Expect(mergeButton).ToBeVisibleAsync(new() { Timeout = 15000 });
+        await mergeButton.WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = 20000 });
+        await Expect(mergeButton).ToBeVisibleAsync();
     }
 
     [Test]
