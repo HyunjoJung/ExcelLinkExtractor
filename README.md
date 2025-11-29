@@ -41,6 +41,20 @@ dotnet build
 dotnet publish ExcelLinkExtractorWeb -c Release -o ./publish
 ```
 
+### Deploying
+
+Use the deployment script:
+
+```bash
+./scripts/deploy.sh
+```
+
+This will:
+1. Clean previous builds
+2. Build the project in Release mode
+3. Transfer files to server using rsync
+4. Restart the systemd service
+
 ## Project Structure
 
 ```
