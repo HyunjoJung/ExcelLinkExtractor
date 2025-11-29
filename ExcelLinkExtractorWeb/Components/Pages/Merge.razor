@@ -114,9 +114,16 @@
                     </div>
                     <div class="card-body text-center p-4">
                         <p class="text-muted mb-4">Sample file with 'Title' and 'URL' columns</p>
-                        <button class="btn btn-outline-success btn-lg" @onclick="DownloadTemplate">
-                            Download Sample (.xlsx)
-                        </button>
+                        @if (isInteractive)
+                        {
+                            <button class="btn btn-outline-success btn-lg" @onclick="DownloadTemplate">
+                                Download Sample (.xlsx)
+                            </button>
+                        }
+                        else
+                        {
+                            <div class="skeleton skeleton-button"></div>
+                        }
                     </div>
                 </div>
             </div>
@@ -140,7 +147,10 @@
                         }
                         else
                         {
-                            <div class="text-muted">Loading...</div>
+                            <!-- Loading skeleton -->
+                            <div class="skeleton skeleton-input" style="max-width: 300px; margin: 0 auto;"></div>
+                            <div class="skeleton skeleton-button mt-3"></div>
+                            <div class="skeleton skeleton-text mt-2" style="max-width: 80px; margin: 0 auto;"></div>
                         }
                     </div>
                 </div>

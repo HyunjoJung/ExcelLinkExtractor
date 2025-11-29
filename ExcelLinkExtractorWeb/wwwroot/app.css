@@ -79,3 +79,36 @@ h1:focus {
     outline: 2px solid #258cfb;
     outline-offset: 2px;
 }
+
+/* Loading skeleton animations */
+.skeleton {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s ease-in-out infinite;
+    border-radius: 0.25rem;
+}
+
+@keyframes loading {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+.skeleton-text {
+    height: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.skeleton-button {
+    height: 3rem;
+    width: 200px;
+    margin: 0 auto;
+}
+
+.skeleton-input {
+    height: 2.5rem;
+    margin-bottom: 1rem;
+}
