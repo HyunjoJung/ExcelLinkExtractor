@@ -49,6 +49,10 @@ dotnet build
 dotnet publish ExcelLinkExtractorWeb -c Release -o ./publish
 ```
 
+### Health Check
+
+The app exposes a basic health endpoint at `/health` (memory/disk check) for probes/load balancers.
+
 ## Development & Tests
 
 ```bash

@@ -11,6 +11,7 @@ SheetLink is a server-side Blazor web application that processes Excel files to 
 - **Excel Processing**: DocumentFormat.OpenXml 3.2.0 (Microsoft official library)
 - **Testing**: XUnit, FluentAssertions, Moq
 - **Deployment**: Self-hosted on Ubuntu 24.04 with Cloudflare Tunnel
+- **Health**: `/health` endpoint using ASP.NET Core health checks (memory/disk)
 
 ## Project Structure
 

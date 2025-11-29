@@ -393,6 +393,7 @@ The application validates configuration on startup. Invalid values will cause st
 - `MaxHeaderSearchRows` must be > 0
 - `MaxUrlLength` must be > 0
 - `RateLimitPerMinute` must be > 0
+- Data annotations (`[Range]`) are enforced via `ValidateDataAnnotations()` with `ValidateOnStart()` for fail-fast startup if values are out of range.
 
 ### Runtime Validation
 

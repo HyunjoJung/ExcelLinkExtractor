@@ -2,13 +2,17 @@ using ExcelLinkExtractorWeb.Components;
 using ExcelLinkExtractorWeb.Configuration;
 using ExcelLinkExtractorWeb.Services;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Options;
 using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add configuration
-builder.Services.Configure<ExcelProcessingOptions>(
-    builder.Configuration.GetSection(ExcelProcessingOptions.SectionName));
+// Add configuration with validation
+builder.Services.AddOptions<ExcelProcessingOptions>()
+    .Bind(builder.Configuration.GetSection(ExcelProcessingOptions.SectionName))
+    .ValidateDataAnnotations()
+    .Validate(options => options.MaxUrlLength <= 10000, "MaxUrlLength must be <= 10000.")
+    .ValidateOnStart();
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
@@ -16,6 +20,8 @@ builder.Services.AddRazorComponents()
 
 // Register LinkExtractor service with interface
 builder.Services.AddScoped<ILinkExtractorService, LinkExtractorService>();
+builder.Services.AddHealthChecks()
+    .AddCheck<SystemHealthCheck>("system_health");
 
 // Add rate limiting - read from configuration
 var excelOptions = builder.Configuration
@@ -85,5 +91,6 @@ app.UseStaticFiles();
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
+app.MapHealthChecks("/health");
 
 app.Run();
