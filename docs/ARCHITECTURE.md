@@ -22,12 +22,15 @@ ExcelLinkExtractor/
 │   │   │   ├── Home.razor              # Link extraction page
 │   │   │   ├── Merge.razor             # Link merging page
 │   │   │   └── FAQ.razor               # FAQ page
+│   │   ├── Shared/                     # Reusable UI pieces (e.g., SkeletonPlaceholder)
 │   │   └── Layout/                     # Layout components
 │   │       ├── MainLayout.razor        # Main application layout
 │   │       └── App.razor               # Root component
 │   ├── Services/                       # Business logic layer
 │   │   ├── ILinkExtractorService.cs    # Service interface
-│   │   ├── LinkExtractorService.cs     # Core Excel processing (900 lines)
+│   │   ├── LinkExtractorService.cs     # Core Excel processing (partial class)
+│   │   ├── LinkExtractorService.Validation.cs # File validation (size/signature)
+│   │   ├── LinkExtractorService.Helpers.cs    # OpenXML helpers + URL sanitization
 │   │   └── ExcelProcessingException.cs # Custom exceptions
 │   ├── Configuration/                  # Configuration classes
 │   │   └── ExcelProcessingOptions.cs   # App settings configuration

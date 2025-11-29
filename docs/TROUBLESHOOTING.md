@@ -376,6 +376,7 @@ Google   | https://google.com
 2. **Self-host** (unlimited requests):
    - Deploy your own instance
    - Set `RateLimitPerMinute` to higher value
+   - For CI/E2E runs, set `ExcelProcessing__RateLimitPerMinute=10000` to avoid throttling parallel tests
 
 3. **Check for automated requests**:
    - Don't use scripts to make rapid requests

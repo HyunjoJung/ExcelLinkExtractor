@@ -33,3 +33,18 @@ scripts/
 # OS
 Thumbs.db
 .DS_Store
+
+# Development planning (personal notes)
+plan.md
+TODO.md
+NOTES.md
+
+# Local configuration
+*.local.json
+.env.local
+appsettings.Local.json
+
+# Test results
+TestResults/
+coverage/
+*.trx

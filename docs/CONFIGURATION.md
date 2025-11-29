@@ -202,6 +202,7 @@ Controls application logging verbosity.
 - **DoS Protection**: Lower values provide better protection
 - **User Experience**: Too low may frustrate legitimate users
 - **NAT/Proxies**: Users behind corporate NAT share the same IP
+- **Testing**: For CI/E2E runs, set `ExcelProcessing__RateLimitPerMinute` to a high value (e.g., `10000`) to avoid 429s during parallel tests.
 
 **Examples**:
 ```json
