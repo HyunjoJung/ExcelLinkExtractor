@@ -49,6 +49,19 @@ dotnet build
 dotnet publish ExcelLinkExtractorWeb -c Release -o ./publish
 ```
 
+## Development & Tests
+
+```bash
+# Build
+dotnet build
+
+# Unit tests (xUnit)
+dotnet test ExcelLinkExtractor.Tests/ExcelLinkExtractor.Tests.csproj
+
+# E2E tests (NUnit + Playwright; auto-starts local server on a free port)
+DOTNET_ROOT=/home/dev/.dotnet dotnet test ExcelLinkExtractorWeb.E2ETests/ExcelLinkExtractorWeb.E2ETests.csproj
+```
+
 ## Project Structure
 
 ```
@@ -62,6 +75,15 @@ ExcelLinkExtractor/
 │   └── wwwroot/                    # Static files
 └── LICENSE                         # Apache License 2.0
 ```
+
+## Documentation
+
+- Architecture: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- Configuration: [docs/CONFIGURATION.md](docs/CONFIGURATION.md)
+- Security: [docs/SECURITY.md](docs/SECURITY.md)
+- Troubleshooting: [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)
+- Contributing: [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)
+- Index: [docs/README.md](docs/README.md)
 
 ## Key Features
 
