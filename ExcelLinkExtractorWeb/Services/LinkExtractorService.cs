@@ -1,4 +1,6 @@
-using ClosedXML.Excel;
+using DocumentFormat.OpenXml;
+using DocumentFormat.OpenXml.Packaging;
+using DocumentFormat.OpenXml.Spreadsheet;
 
 namespace ExcelLinkExtractorWeb.Services;
 
@@ -31,114 +33,163 @@ public class LinkExtractorService
 
         try
         {
-            using var workbook = new XLWorkbook(fileStream);
-            var worksheet = workbook.Worksheet(1);
+            using var document = SpreadsheetDocument.Open(fileStream, false);
+            var workbookPart = document.WorkbookPart!;
+            var worksheetPart = workbookPart.WorksheetParts.First();
+            var worksheet = worksheetPart.Worksheet;
+            var sheetData = worksheet.GetFirstChild<SheetData>()!;
 
             // Find header row
-            int? headerRowNumber = null;
+            int? headerRowIndex = null;
             int? targetColumnIndex = null;
 
-            for (int i = 1; i <= 10; i++)
+            foreach (var row in sheetData.Elements<Row>().Take(10))
             {
-                var row = worksheet.Row(i);
-                foreach (var cell in row.CellsUsed())
+                foreach (var cell in row.Elements<Cell>())
                 {
-                    if (cell.GetValue<string>().Equals(linkColumnName, StringComparison.OrdinalIgnoreCase))
+                    var cellValue = GetCellValue(cell, workbookPart);
+                    if (cellValue.Equals(linkColumnName, StringComparison.OrdinalIgnoreCase))
                     {
-                        headerRowNumber = i;
-                        targetColumnIndex = cell.Address.ColumnNumber;
+                        headerRowIndex = (int)row.RowIndex!.Value;
+                        targetColumnIndex = GetColumnIndex(cell.CellReference!.Value!);
                         break;
                     }
                 }
-                if (headerRowNumber != null) break;
+                if (headerRowIndex != null) break;
             }
 
-            if (targetColumnIndex == null || headerRowNumber == null)
+            if (targetColumnIndex == null || headerRowIndex == null)
             {
                 result.ErrorMessage = $"Column '{linkColumnName}' not found.";
                 return result;
             }
 
             // Create new workbook
-            var newWorkbook = new XLWorkbook();
-            var newWorksheet = newWorkbook.Worksheets.Add("Extracted Links");
-
-            // Copy header
-            var originalHeaderRow = worksheet.Row(headerRowNumber.Value);
-            foreach (var cell in originalHeaderRow.CellsUsed())
+            var outputStream = new MemoryStream();
+            using (var newDocument = SpreadsheetDocument.Create(outputStream, SpreadsheetDocumentType.Workbook))
             {
-                var newCell = newWorksheet.Cell(1, cell.Address.ColumnNumber);
-                newCell.Value = cell.Value;
-                newCell.Style.Font.Bold = true;
-            }
+                var newWorkbookPart = newDocument.AddWorkbookPart();
+                newWorkbookPart.Workbook = new Workbook();
 
-            // Iterate data rows
-            int dataStartRow = headerRowNumber.Value + 1;
-            int lastRow = worksheet.LastRowUsed()?.RowNumber() ?? 0;
+                var newWorksheetPart = newWorkbookPart.AddNewPart<WorksheetPart>();
+                newWorksheetPart.Worksheet = new Worksheet(new SheetData());
 
-            for (int i = dataStartRow; i <= lastRow; i++)
-            {
-                var row = worksheet.Row(i);
-                int newRowIndex = i - dataStartRow + 2;
-
-                var titleCell = row.Cell(targetColumnIndex.Value);
-                string extractedUrl = "";
-
-                // Extract hyperlink
-                if (titleCell.HasHyperlink)
+                var sheets = newWorkbookPart.Workbook.AppendChild(new Sheets());
+                var sheet = new Sheet()
                 {
-                    var hyperlink = titleCell.GetHyperlink();
-                    extractedUrl = hyperlink.ExternalAddress?.ToString() ?? hyperlink.InternalAddress ?? "";
+                    Id = newWorkbookPart.GetIdOfPart(newWorksheetPart),
+                    SheetId = 1,
+                    Name = "Extracted Links"
+                };
+                sheets.Append(sheet);
 
-                    result.Links.Add(new LinkInfo
+                var newSheetData = newWorksheetPart.Worksheet.GetFirstChild<SheetData>()!;
+
+                // Create stylesheet
+                var stylesPart = newWorkbookPart.AddNewPart<WorkbookStylesPart>();
+                stylesPart.Stylesheet = CreateStylesheet();
+
+                // Copy header row with bold style
+                var headerRow = new Row { RowIndex = 1 };
+                var originalHeaderRow = sheetData.Elements<Row>().First(r => r.RowIndex == headerRowIndex);
+
+                foreach (var cell in originalHeaderRow.Elements<Cell>())
+                {
+                    var newCell = new Cell
                     {
-                        Row = i,
-                        Title = titleCell.GetValue<string>(),
-                        Url = extractedUrl
-                    });
+                        CellReference = GetCellReference(1, GetColumnIndex(cell.CellReference!.Value!)),
+                        DataType = CellValues.String,
+                        CellValue = new CellValue(GetCellValue(cell, workbookPart)),
+                        StyleIndex = 1 // Bold style
+                    };
+                    headerRow.Append(newCell);
                 }
+                newSheetData.Append(headerRow);
 
-                // Copy all columns
-                foreach (var cell in row.CellsUsed())
+                // Process data rows
+                uint newRowIndex = 2;
+                var rows = sheetData.Elements<Row>().Where(r => r.RowIndex > headerRowIndex).ToList();
+
+                foreach (var row in rows)
                 {
-                    var newCell = newWorksheet.Cell(newRowIndex, cell.Address.ColumnNumber);
-                    newCell.Value = cell.Value;
+                    var newRow = new Row { RowIndex = newRowIndex };
+                    bool hasData = false;
 
-                    if (cell.HasHyperlink)
+                    foreach (var cell in row.Elements<Cell>())
                     {
-                        var hyperlink = cell.GetHyperlink();
-                        string url = hyperlink.ExternalAddress?.ToString() ?? hyperlink.InternalAddress ?? "";
-                        var sanitized = SanitizeUrl(url);
-                        if (!string.IsNullOrEmpty(sanitized))
+                        var colIndex = GetColumnIndex(cell.CellReference!.Value!);
+                        var cellValue = GetCellValue(cell, workbookPart);
+
+                        if (!string.IsNullOrWhiteSpace(cellValue))
+                            hasData = true;
+
+                        var newCell = new Cell
                         {
-                            try
+                            CellReference = GetCellReference(newRowIndex, colIndex),
+                            DataType = CellValues.String,
+                            CellValue = new CellValue(cellValue)
+                        };
+
+                        // Check for hyperlink
+                        var hyperlink = GetHyperlink(worksheetPart, cell.CellReference!.Value!);
+                        if (hyperlink != null)
+                        {
+                            newCell.StyleIndex = 2; // Hyperlink style
+
+                            if (colIndex == targetColumnIndex)
                             {
-                                newCell.SetHyperlink(new XLHyperlink(sanitized));
-                                newCell.Style.Font.FontColor = XLColor.Blue;
-                                newCell.Style.Font.Underline = XLFontUnderlineValues.Single;
+                                result.Links.Add(new LinkInfo
+                                {
+                                    Row = (int)row.RowIndex!.Value,
+                                    Title = cellValue,
+                                    Url = hyperlink
+                                });
                             }
-                            catch { }
                         }
+
+                        newRow.Append(newCell);
+                    }
+
+                    if (hasData)
+                    {
+                        // Add extracted URL to column B
+                        var hyperlink = GetHyperlink(worksheetPart, GetCellReference((uint)row.RowIndex!.Value, targetColumnIndex.Value));
+                        if (!string.IsNullOrEmpty(hyperlink))
+                        {
+                            var urlCell = newRow.Elements<Cell>().FirstOrDefault(c => GetColumnIndex(c.CellReference!.Value!) == 2);
+                            if (urlCell == null)
+                            {
+                                urlCell = new Cell
+                                {
+                                    CellReference = GetCellReference(newRowIndex, 2),
+                                    DataType = CellValues.String,
+                                    CellValue = new CellValue(hyperlink)
+                                };
+                                newRow.Append(urlCell);
+                            }
+                            else
+                            {
+                                urlCell.CellValue = new CellValue(hyperlink);
+                            }
+                        }
+
+                        newSheetData.Append(newRow);
+                        newRowIndex++;
                     }
                 }
 
-                // Add URL text to column B
-                if (!string.IsNullOrEmpty(extractedUrl))
-                {
-                    var linkTextCell = newWorksheet.Cell(newRowIndex, 2);
-                    linkTextCell.Value = extractedUrl;
-                }
+                result.TotalRows = (int)(newRowIndex - 2);
+                result.LinksFound = result.Links.Count;
+
+                // Add column widths
+                var columns = new Columns();
+                columns.Append(new Column { Min = 1, Max = 1, Width = 30, CustomWidth = true });
+                columns.Append(new Column { Min = 2, Max = 2, Width = 50, CustomWidth = true });
+                newWorksheetPart.Worksheet.InsertBefore(columns, newSheetData);
+
+                newWorkbookPart.Workbook.Save();
             }
 
-            result.TotalRows = lastRow - dataStartRow + 1;
-            result.LinksFound = result.Links.Count;
-
-            // Adjust column width
-            newWorksheet.Columns().AdjustToContents();
-
-            // Save to memory stream
-            using var outputStream = new MemoryStream();
-            newWorkbook.SaveAs(outputStream);
             result.OutputFile = outputStream.ToArray();
         }
         catch (Exception ex)
@@ -151,122 +202,189 @@ public class LinkExtractorService
 
     public byte[] CreateTemplate()
     {
-        using var workbook = new XLWorkbook();
-        var worksheet = workbook.Worksheets.Add("Data");
-
-        // Header
-        worksheet.Cell(1, 1).Value = "Title";
-        worksheet.Cell(1, 2).Value = "URL";
-
-        // Header style
-        var headerRange = worksheet.Range(1, 1, 1, 2);
-        headerRange.Style.Font.Bold = true;
-        headerRange.Style.Fill.BackgroundColor = XLColor.LightBlue;
-
-        // Sample data (with hyperlinks)
-        worksheet.Cell(2, 1).Value = "Example Link 1";
-        worksheet.Cell(2, 1).SetHyperlink(new XLHyperlink("https://www.example.com"));
-        worksheet.Cell(2, 1).Style.Font.FontColor = XLColor.Blue;
-        worksheet.Cell(2, 1).Style.Font.Underline = XLFontUnderlineValues.Single;
-
-        worksheet.Cell(3, 1).Value = "Example Link 2";
-        worksheet.Cell(3, 1).SetHyperlink(new XLHyperlink("https://www.google.com"));
-        worksheet.Cell(3, 1).Style.Font.FontColor = XLColor.Blue;
-        worksheet.Cell(3, 1).Style.Font.Underline = XLFontUnderlineValues.Single;
-
-        // Instruction text
-        worksheet.Cell(5, 1).Value = "Add hyperlinks to Title column. URLs will be extracted automatically.";
-        worksheet.Cell(5, 1).Style.Font.FontColor = XLColor.Gray;
-
-        // Adjust column width
-        worksheet.Column(1).Width = 30;
-        worksheet.Column(2).Width = 50;
-
-        using var stream = new MemoryStream();
-        workbook.SaveAs(stream);
-        return stream.ToArray();
-    }
-
-    public byte[] CreateMergedFile(List<string> titles, List<string> urls)
-    {
-        using var workbook = new XLWorkbook();
-        var worksheet = workbook.Worksheets.Add("Merged Links");
-
-        // Header
-        worksheet.Cell(1, 1).Value = "Title";
-        worksheet.Cell(1, 2).Value = "URL";
-        var headerRange = worksheet.Range(1, 1, 1, 2);
-        headerRange.Style.Font.Bold = true;
-        headerRange.Style.Fill.BackgroundColor = XLColor.LightGreen;
-
-        // Add data
-        for (int i = 0; i < titles.Count; i++)
+        var stream = new MemoryStream();
+        using (var document = SpreadsheetDocument.Create(stream, SpreadsheetDocumentType.Workbook))
         {
-            var rowIndex = i + 2;
-            var titleCell = worksheet.Cell(rowIndex, 1);
-            titleCell.Value = titles[i];
+            var workbookPart = document.AddWorkbookPart();
+            workbookPart.Workbook = new Workbook();
 
-            var sanitizedUrl = SanitizeUrl(urls[i]);
-            if (!string.IsNullOrEmpty(sanitizedUrl))
+            var worksheetPart = workbookPart.AddNewPart<WorksheetPart>();
+            worksheetPart.Worksheet = new Worksheet(new SheetData());
+
+            var sheets = workbookPart.Workbook.AppendChild(new Sheets());
+            var sheet = new Sheet()
             {
-                try
-                {
-                    titleCell.SetHyperlink(new XLHyperlink(sanitizedUrl));
-                    titleCell.Style.Font.FontColor = XLColor.Blue;
-                    titleCell.Style.Font.Underline = XLFontUnderlineValues.Single;
-                }
-                catch
-                {
-                    // Invalid URL - skip hyperlink but keep text
-                }
-            }
+                Id = workbookPart.GetIdOfPart(worksheetPart),
+                SheetId = 1,
+                Name = "Data"
+            };
+            sheets.Append(sheet);
 
-            worksheet.Cell(rowIndex, 2).Value = urls[i];
+            var sheetData = worksheetPart.Worksheet.GetFirstChild<SheetData>()!;
+
+            // Create stylesheet
+            var stylesPart = workbookPart.AddNewPart<WorkbookStylesPart>();
+            stylesPart.Stylesheet = CreateStylesheet();
+
+            // Header row with blue background
+            var headerRow = new Row { RowIndex = 1 };
+            headerRow.Append(new Cell
+            {
+                CellReference = "A1",
+                DataType = CellValues.String,
+                CellValue = new CellValue("Title"),
+                StyleIndex = 3 // Header with blue background
+            });
+            headerRow.Append(new Cell
+            {
+                CellReference = "B1",
+                DataType = CellValues.String,
+                CellValue = new CellValue("URL"),
+                StyleIndex = 3
+            });
+            sheetData.Append(headerRow);
+
+            // Sample data with hyperlinks
+            var row2 = new Row { RowIndex = 2 };
+            row2.Append(new Cell
+            {
+                CellReference = "A2",
+                DataType = CellValues.String,
+                CellValue = new CellValue("Example Link 1"),
+                StyleIndex = 2 // Hyperlink style
+            });
+            sheetData.Append(row2);
+
+            var row3 = new Row { RowIndex = 3 };
+            row3.Append(new Cell
+            {
+                CellReference = "A3",
+                DataType = CellValues.String,
+                CellValue = new CellValue("Example Link 2"),
+                StyleIndex = 2
+            });
+            sheetData.Append(row3);
+
+            // Add hyperlinks
+            var hyperlinks = new Hyperlinks();
+            hyperlinks.Append(new Hyperlink { Reference = "A2", Id = AddHyperlinkRelationship(worksheetPart, "https://www.example.com") });
+            hyperlinks.Append(new Hyperlink { Reference = "A3", Id = AddHyperlinkRelationship(worksheetPart, "https://www.google.com") });
+            worksheetPart.Worksheet.Append(hyperlinks);
+
+            // Instruction text
+            var row5 = new Row { RowIndex = 5 };
+            row5.Append(new Cell
+            {
+                CellReference = "A5",
+                DataType = CellValues.String,
+                CellValue = new CellValue("Add hyperlinks to Title column. URLs will be extracted automatically."),
+                StyleIndex = 4 // Gray text
+            });
+            sheetData.Append(row5);
+
+            // Column widths
+            var columns = new Columns();
+            columns.Append(new Column { Min = 1, Max = 1, Width = 30, CustomWidth = true });
+            columns.Append(new Column { Min = 2, Max = 2, Width = 50, CustomWidth = true });
+            worksheetPart.Worksheet.InsertBefore(columns, sheetData);
+
+            workbookPart.Workbook.Save();
         }
 
-        // Adjust column width
-        worksheet.Column(1).Width = 40;
-        worksheet.Column(2).Width = 60;
-
-        using var stream = new MemoryStream();
-        workbook.SaveAs(stream);
         return stream.ToArray();
     }
 
     public byte[] CreateMergeTemplate()
     {
-        using var workbook = new XLWorkbook();
-        var worksheet = workbook.Worksheets.Add("Data");
+        var stream = new MemoryStream();
+        using (var document = SpreadsheetDocument.Create(stream, SpreadsheetDocumentType.Workbook))
+        {
+            var workbookPart = document.AddWorkbookPart();
+            workbookPart.Workbook = new Workbook();
 
-        // Header
-        worksheet.Cell(1, 1).Value = "Title";
-        worksheet.Cell(1, 2).Value = "URL";
+            var worksheetPart = workbookPart.AddNewPart<WorksheetPart>();
+            worksheetPart.Worksheet = new Worksheet(new SheetData());
 
-        // Header style
-        var headerRange = worksheet.Range(1, 1, 1, 2);
-        headerRange.Style.Font.Bold = true;
-        headerRange.Style.Fill.BackgroundColor = XLColor.LightGreen;
+            var sheets = workbookPart.Workbook.AppendChild(new Sheets());
+            var sheet = new Sheet()
+            {
+                Id = workbookPart.GetIdOfPart(worksheetPart),
+                SheetId = 1,
+                Name = "Data"
+            };
+            sheets.Append(sheet);
 
-        // Sample data
-        worksheet.Cell(2, 1).Value = "Google";
-        worksheet.Cell(2, 2).Value = "https://www.google.com";
+            var sheetData = worksheetPart.Worksheet.GetFirstChild<SheetData>()!;
 
-        worksheet.Cell(3, 1).Value = "GitHub";
-        worksheet.Cell(3, 2).Value = "https://www.github.com";
+            // Create stylesheet
+            var stylesPart = workbookPart.AddNewPart<WorkbookStylesPart>();
+            stylesPart.Stylesheet = CreateStylesheet();
 
-        worksheet.Cell(4, 1).Value = "YouTube";
-        worksheet.Cell(4, 2).Value = "https://www.youtube.com";
+            // Header row with green background
+            var headerRow = new Row { RowIndex = 1 };
+            headerRow.Append(new Cell
+            {
+                CellReference = "A1",
+                DataType = CellValues.String,
+                CellValue = new CellValue("Title"),
+                StyleIndex = 5 // Header with green background
+            });
+            headerRow.Append(new Cell
+            {
+                CellReference = "B1",
+                DataType = CellValues.String,
+                CellValue = new CellValue("URL"),
+                StyleIndex = 5
+            });
+            sheetData.Append(headerRow);
 
-        // Instruction text
-        worksheet.Cell(6, 1).Value = "Paste your Title and URL data here. Hyperlinks will be created automatically.";
-        worksheet.Cell(6, 1).Style.Font.FontColor = XLColor.Gray;
+            // Sample data
+            var samples = new[] {
+                ("Google", "https://www.google.com"),
+                ("GitHub", "https://www.github.com"),
+                ("YouTube", "https://www.youtube.com")
+            };
 
-        // Adjust column width
-        worksheet.Column(1).Width = 30;
-        worksheet.Column(2).Width = 50;
+            uint rowIndex = 2;
+            foreach (var (title, url) in samples)
+            {
+                var row = new Row { RowIndex = rowIndex };
+                row.Append(new Cell
+                {
+                    CellReference = $"A{rowIndex}",
+                    DataType = CellValues.String,
+                    CellValue = new CellValue(title)
+                });
+                row.Append(new Cell
+                {
+                    CellReference = $"B{rowIndex}",
+                    DataType = CellValues.String,
+                    CellValue = new CellValue(url)
+                });
+                sheetData.Append(row);
+                rowIndex++;
+            }
 
-        using var stream = new MemoryStream();
-        workbook.SaveAs(stream);
+            // Instruction text
+            var instructionRow = new Row { RowIndex = 6 };
+            instructionRow.Append(new Cell
+            {
+                CellReference = "A6",
+                DataType = CellValues.String,
+                CellValue = new CellValue("Paste your Title and URL data here. Hyperlinks will be created automatically."),
+                StyleIndex = 4 // Gray text
+            });
+            sheetData.Append(instructionRow);
+
+            // Column widths
+            var columns = new Columns();
+            columns.Append(new Column { Min = 1, Max = 1, Width = 30, CustomWidth = true });
+            columns.Append(new Column { Min = 2, Max = 2, Width = 50, CustomWidth = true });
+            worksheetPart.Worksheet.InsertBefore(columns, sheetData);
+
+            workbookPart.Workbook.Save();
+        }
+
         return stream.ToArray();
     }
 
@@ -290,28 +408,30 @@ public class LinkExtractorService
 
         try
         {
-            using var workbook = new XLWorkbook(fileStream);
-            var worksheet = workbook.Worksheet(1);
+            using var document = SpreadsheetDocument.Open(fileStream, false);
+            var workbookPart = document.WorkbookPart!;
+            var worksheetPart = workbookPart.WorksheetParts.First();
+            var worksheet = worksheetPart.Worksheet;
+            var sheetData = worksheet.GetFirstChild<SheetData>()!;
 
             // Find header row
-            int? headerRowNumber = null;
+            int? headerRowIndex = null;
             int? titleColumnIndex = null;
             int? urlColumnIndex = null;
 
-            for (int i = 1; i <= 10; i++)
+            foreach (var row in sheetData.Elements<Row>().Take(10))
             {
-                var row = worksheet.Row(i);
-                foreach (var cell in row.CellsUsed())
+                foreach (var cell in row.Elements<Cell>())
                 {
-                    var value = cell.GetValue<string>().ToLower();
+                    var value = GetCellValue(cell, workbookPart).ToLower();
                     if (value == "title")
                     {
-                        headerRowNumber = i;
-                        titleColumnIndex = cell.Address.ColumnNumber;
+                        headerRowIndex = (int)row.RowIndex!.Value;
+                        titleColumnIndex = GetColumnIndex(cell.CellReference!.Value!);
                     }
                     else if (value == "url")
                     {
-                        urlColumnIndex = cell.Address.ColumnNumber;
+                        urlColumnIndex = GetColumnIndex(cell.CellReference!.Value!);
                     }
                 }
                 if (titleColumnIndex != null && urlColumnIndex != null) break;
@@ -323,71 +443,126 @@ public class LinkExtractorService
                 return result;
             }
 
-            // Create new workbook with hyperlinks
-            var newWorkbook = new XLWorkbook();
-            var newWorksheet = newWorkbook.Worksheets.Add("Merged Links");
-
-            // Header
-            newWorksheet.Cell(1, 1).Value = "Title";
-            newWorksheet.Cell(1, 2).Value = "URL";
-            var headerRange = newWorksheet.Range(1, 1, 1, 2);
-            headerRange.Style.Font.Bold = true;
-            headerRange.Style.Fill.BackgroundColor = XLColor.LightGreen;
-
-            // Process data rows
-            int dataStartRow = headerRowNumber!.Value + 1;
-            int lastRow = worksheet.LastRowUsed()?.RowNumber() ?? 0;
-            int newRowIndex = 2;
-
-            for (int i = dataStartRow; i <= lastRow; i++)
+            // Create new workbook
+            var outputStream = new MemoryStream();
+            using (var newDocument = SpreadsheetDocument.Create(outputStream, SpreadsheetDocumentType.Workbook))
             {
-                var row = worksheet.Row(i);
-                var title = row.Cell(titleColumnIndex.Value).GetValue<string>().Trim();
-                var url = row.Cell(urlColumnIndex.Value).GetValue<string>().Trim();
+                var newWorkbookPart = newDocument.AddWorkbookPart();
+                newWorkbookPart.Workbook = new Workbook();
 
-                if (string.IsNullOrEmpty(title) && string.IsNullOrEmpty(url))
-                    continue;
+                var newWorksheetPart = newWorkbookPart.AddNewPart<WorksheetPart>();
+                newWorksheetPart.Worksheet = new Worksheet(new SheetData());
 
-                var titleCell = newWorksheet.Cell(newRowIndex, 1);
-                titleCell.Value = title;
-
-                var sanitizedUrl = SanitizeUrl(url);
-                if (!string.IsNullOrEmpty(sanitizedUrl))
+                var sheets = newWorkbookPart.Workbook.AppendChild(new Sheets());
+                var sheet = new Sheet()
                 {
-                    try
+                    Id = newWorkbookPart.GetIdOfPart(newWorksheetPart),
+                    SheetId = 1,
+                    Name = "Merged Links"
+                };
+                sheets.Append(sheet);
+
+                var newSheetData = newWorksheetPart.Worksheet.GetFirstChild<SheetData>()!;
+
+                // Create stylesheet
+                var stylesPart = newWorkbookPart.AddNewPart<WorkbookStylesPart>();
+                stylesPart.Stylesheet = CreateStylesheet();
+
+                // Header row
+                var headerRow = new Row { RowIndex = 1 };
+                headerRow.Append(new Cell
+                {
+                    CellReference = "A1",
+                    DataType = CellValues.String,
+                    CellValue = new CellValue("Title"),
+                    StyleIndex = 5 // Green background
+                });
+                headerRow.Append(new Cell
+                {
+                    CellReference = "B1",
+                    DataType = CellValues.String,
+                    CellValue = new CellValue("URL"),
+                    StyleIndex = 5
+                });
+                newSheetData.Append(headerRow);
+
+                // Process data rows
+                uint newRowIndex = 2;
+                var hyperlinks = new Hyperlinks();
+                var rows = sheetData.Elements<Row>().Where(r => r.RowIndex > headerRowIndex).ToList();
+
+                foreach (var row in rows)
+                {
+                    var titleCell = row.Elements<Cell>().FirstOrDefault(c => GetColumnIndex(c.CellReference!.Value!) == titleColumnIndex);
+                    var urlCell = row.Elements<Cell>().FirstOrDefault(c => GetColumnIndex(c.CellReference!.Value!) == urlColumnIndex);
+
+                    var title = titleCell != null ? GetCellValue(titleCell, workbookPart).Trim() : "";
+                    var url = urlCell != null ? GetCellValue(urlCell, workbookPart).Trim() : "";
+
+                    if (string.IsNullOrEmpty(title) && string.IsNullOrEmpty(url))
+                        continue;
+
+                    var newRow = new Row { RowIndex = newRowIndex };
+                    var newTitleCell = new Cell
                     {
-                        titleCell.SetHyperlink(new XLHyperlink(sanitizedUrl));
-                        titleCell.Style.Font.FontColor = XLColor.Blue;
-                        titleCell.Style.Font.Underline = XLFontUnderlineValues.Single;
-                        result.LinksCreated++;
-                    }
-                    catch
+                        CellReference = $"A{newRowIndex}",
+                        DataType = CellValues.String,
+                        CellValue = new CellValue(title)
+                    };
+
+                    var sanitizedUrl = SanitizeUrl(url);
+                    if (!string.IsNullOrEmpty(sanitizedUrl))
                     {
-                        // Invalid URL - skip hyperlink but keep text
+                        try
+                        {
+                            var relationshipId = AddHyperlinkRelationship(newWorksheetPart, sanitizedUrl);
+                            hyperlinks.Append(new Hyperlink { Reference = $"A{newRowIndex}", Id = relationshipId });
+                            newTitleCell.StyleIndex = 2; // Hyperlink style
+                            result.LinksCreated++;
+                        }
+                        catch
+                        {
+                            // Invalid URL - skip hyperlink
+                        }
                     }
+
+                    newRow.Append(newTitleCell);
+                    newRow.Append(new Cell
+                    {
+                        CellReference = $"B{newRowIndex}",
+                        DataType = CellValues.String,
+                        CellValue = new CellValue(url)
+                    });
+
+                    newSheetData.Append(newRow);
+
+                    result.Links.Add(new LinkInfo
+                    {
+                        Row = (int)newRowIndex,
+                        Title = title,
+                        Url = url
+                    });
+
+                    newRowIndex++;
                 }
 
-                newWorksheet.Cell(newRowIndex, 2).Value = url;
+                result.TotalRows = (int)(newRowIndex - 2);
 
-                result.Links.Add(new LinkInfo
+                // Add hyperlinks if any
+                if (hyperlinks.ChildElements.Count > 0)
                 {
-                    Row = newRowIndex,
-                    Title = title,
-                    Url = url
-                });
+                    newWorksheetPart.Worksheet.Append(hyperlinks);
+                }
 
-                newRowIndex++;
+                // Column widths
+                var columns = new Columns();
+                columns.Append(new Column { Min = 1, Max = 1, Width = 40, CustomWidth = true });
+                columns.Append(new Column { Min = 2, Max = 2, Width = 60, CustomWidth = true });
+                newWorksheetPart.Worksheet.InsertBefore(columns, newSheetData);
+
+                newWorkbookPart.Workbook.Save();
             }
 
-            result.TotalRows = newRowIndex - 2;
-
-            // Adjust column width
-            newWorksheet.Column(1).Width = 40;
-            newWorksheet.Column(2).Width = 60;
-
-            // Save to memory stream
-            using var outputStream = new MemoryStream();
-            newWorkbook.SaveAs(outputStream);
             result.OutputFile = outputStream.ToArray();
         }
         catch (Exception ex)
@@ -396,6 +571,116 @@ public class LinkExtractorService
         }
 
         return result;
+    }
+
+    private static Stylesheet CreateStylesheet()
+    {
+        var stylesheet = new Stylesheet();
+
+        // Fonts
+        var fonts = new Fonts();
+        fonts.Append(new Font()); // 0 - Default
+        fonts.Append(new Font(new Bold())); // 1 - Bold
+        fonts.Append(new Font( // 2 - Blue hyperlink
+            new Color { Theme = 10 },
+            new Underline()
+        ));
+        fonts.Append(new Font(new Color { Rgb = "FF808080" })); // 3 - Gray
+        fonts.Count = (uint)fonts.ChildElements.Count;
+
+        // Fills
+        var fills = new Fills();
+        fills.Append(new Fill(new PatternFill { PatternType = PatternValues.None })); // 0 - Default
+        fills.Append(new Fill(new PatternFill { PatternType = PatternValues.Gray125 })); // 1 - Required
+        fills.Append(new Fill(new PatternFill( // 2 - Light Blue
+            new ForegroundColor { Rgb = "FFADD8E6" }
+        ) { PatternType = PatternValues.Solid }));
+        fills.Append(new Fill(new PatternFill( // 3 - Light Green
+            new ForegroundColor { Rgb = "FF90EE90" }
+        ) { PatternType = PatternValues.Solid }));
+        fills.Count = (uint)fills.ChildElements.Count;
+
+        // Borders
+        var borders = new Borders();
+        borders.Append(new Border()); // 0 - Default
+        borders.Count = (uint)borders.ChildElements.Count;
+
+        // Cell formats
+        var cellFormats = new CellFormats();
+        cellFormats.Append(new CellFormat()); // 0 - Default
+        cellFormats.Append(new CellFormat { FontId = 1, FillId = 0, BorderId = 0, ApplyFont = true }); // 1 - Bold
+        cellFormats.Append(new CellFormat { FontId = 2, FillId = 0, BorderId = 0, ApplyFont = true }); // 2 - Hyperlink (blue underline)
+        cellFormats.Append(new CellFormat { FontId = 1, FillId = 2, BorderId = 0, ApplyFont = true, ApplyFill = true }); // 3 - Header blue
+        cellFormats.Append(new CellFormat { FontId = 3, FillId = 0, BorderId = 0, ApplyFont = true }); // 4 - Gray text
+        cellFormats.Append(new CellFormat { FontId = 1, FillId = 3, BorderId = 0, ApplyFont = true, ApplyFill = true }); // 5 - Header green
+        cellFormats.Count = (uint)cellFormats.ChildElements.Count;
+
+        stylesheet.Fonts = fonts;
+        stylesheet.Fills = fills;
+        stylesheet.Borders = borders;
+        stylesheet.CellFormats = cellFormats;
+
+        return stylesheet;
+    }
+
+    private static string GetCellValue(Cell cell, WorkbookPart workbookPart)
+    {
+        if (cell.CellValue == null)
+            return "";
+
+        var value = cell.CellValue.Text;
+
+        if (cell.DataType != null && cell.DataType.Value == CellValues.SharedString)
+        {
+            var stringTable = workbookPart.SharedStringTablePart!.SharedStringTable;
+            return stringTable.ElementAt(int.Parse(value)).InnerText;
+        }
+
+        return value;
+    }
+
+    private static string? GetHyperlink(WorksheetPart worksheetPart, string cellReference)
+    {
+        var hyperlinks = worksheetPart.Worksheet.GetFirstChild<Hyperlinks>();
+        if (hyperlinks == null)
+            return null;
+
+        var hyperlink = hyperlinks.Elements<Hyperlink>().FirstOrDefault(h => h.Reference == cellReference);
+        if (hyperlink?.Id == null)
+            return null;
+
+        var hyperlinkRelationship = worksheetPart.HyperlinkRelationships.FirstOrDefault(r => r.Id == hyperlink.Id);
+        return hyperlinkRelationship?.Uri?.ToString();
+    }
+
+    private static string AddHyperlinkRelationship(WorksheetPart worksheetPart, string url)
+    {
+        var relationship = worksheetPart.AddHyperlinkRelationship(new Uri(url, UriKind.Absolute), true);
+        return relationship.Id;
+    }
+
+    private static int GetColumnIndex(string cellReference)
+    {
+        var columnName = new string(cellReference.Where(char.IsLetter).ToArray());
+        int columnIndex = 0;
+        for (int i = 0; i < columnName.Length; i++)
+        {
+            columnIndex *= 26;
+            columnIndex += (columnName[i] - 'A' + 1);
+        }
+        return columnIndex;
+    }
+
+    private static string GetCellReference(uint rowIndex, int columnIndex)
+    {
+        string columnName = "";
+        while (columnIndex > 0)
+        {
+            int modulo = (columnIndex - 1) % 26;
+            columnName = Convert.ToChar('A' + modulo) + columnName;
+            columnIndex = (columnIndex - modulo) / 26;
+        }
+        return columnName + rowIndex;
     }
 
     private static string? SanitizeUrl(string? url)
