@@ -1,19 +1,11 @@
 using ExcelLinkExtractorWeb.Components;
 using ExcelLinkExtractorWeb.Services;
-using Microsoft.AspNetCore.Components;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddControllers();
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
-
-// Register HttpClient for Blazor components
-builder.Services.AddScoped(sp => new HttpClient
-{
-    BaseAddress = new Uri(sp.GetRequiredService<NavigationManager>().BaseUri)
-});
 
 // Register LinkExtractor service
 builder.Services.AddScoped<LinkExtractorService>();
@@ -34,7 +26,6 @@ app.UseAntiforgery();
 
 app.UseStaticFiles();
 app.MapStaticAssets();
-app.MapControllers();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 

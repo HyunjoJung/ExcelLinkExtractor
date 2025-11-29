@@ -2,7 +2,7 @@
 @rendermode InteractiveServer
 @implements IDisposable
 @inject IJSRuntime JS
-@inject HttpClient Http
+@inject ExcelLinkExtractorWeb.Services.LinkExtractorService ExtractorService
 @inject PersistentComponentState ApplicationState
 @using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.AspNetCore.Components.Web
@@ -114,9 +114,9 @@
                     </div>
                     <div class="card-body text-center p-4">
                         <p class="text-muted mb-4">Sample file with 'Title' and 'URL' columns</p>
-                        <a href="/api/file/merge-template" class="btn btn-outline-success btn-lg" download>
+                        <button class="btn btn-outline-success btn-lg" @onclick="DownloadTemplate">
                             Download Sample (.xlsx)
-                        </a>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -243,39 +243,32 @@
             errorMessage = null;
             StateHasChanged();
 
-            // Create multipart form data
-            using var content = new MultipartFormDataContent();
-
             // Read file stream
-            var fileStream = selectedFile.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024); // 10MB
-            var streamContent = new StreamContent(fileStream);
-            streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(selectedFile.ContentType);
+            using var stream = new MemoryStream();
+            await selectedFile.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024).CopyToAsync(stream);
+            stream.Position = 0;
 
-            content.Add(streamContent, "file", selectedFile.Name);
+            // Call service directly
+            var serviceResult = await ExtractorService.MergeFromFileAsync(stream);
 
-            // Post to API
-            var response = await Http.PostAsync("/api/file/merge-upload", content);
-            var responseData = await response.Content.ReadFromJsonAsync<ApiResponse>();
-
-            if (responseData == null)
+            if (!string.IsNullOrEmpty(serviceResult.ErrorMessage))
             {
-                errorMessage = "No response from server.";
-                return;
-            }
-
-            if (!string.IsNullOrEmpty(responseData.Error))
-            {
-                errorMessage = responseData.Error;
+                errorMessage = serviceResult.ErrorMessage;
                 return;
             }
 
             result = new MergeResult
             {
-                TotalRows = responseData.TotalRows,
-                LinksCreated = responseData.LinksCreated,
-                Links = responseData.Links ?? new List<LinkInfo>()
+                TotalRows = serviceResult.TotalRows,
+                LinksCreated = serviceResult.LinksCreated,
+                Links = serviceResult.Links.Take(10).Select(l => new LinkInfo
+                {
+                    Row = l.Row,
+                    Title = l.Title,
+                    Url = l.Url
+                }).ToList()
             };
-            outputBase64 = responseData.OutputFileBase64;
+            outputBase64 = Convert.ToBase64String(serviceResult.OutputFile!);
             originalFileName = selectedFile.Name;
         }
         catch (Exception ex)
@@ -287,6 +280,13 @@
             isProcessing = false;
             StateHasChanged();
         }
+    }
+
+    private async Task DownloadTemplate()
+    {
+        var bytes = ExtractorService.CreateMergeTemplate();
+        var base64 = Convert.ToBase64String(bytes);
+        await JS.InvokeVoidAsync("downloadFile", "link_merge_template.xlsx", base64);
     }
 
     private async Task DownloadResult()
@@ -303,6 +303,7 @@
         errorMessage = null;
         outputBase64 = null;
         originalFileName = null;
+        selectedFile = null;
     }
 
     private class MergeResult
@@ -317,14 +318,5 @@
         public int Row { get; set; }
         public string Title { get; set; } = "";
         public string Url { get; set; } = "";
-    }
-
-    private class ApiResponse
-    {
-        public int TotalRows { get; set; }
-        public int LinksCreated { get; set; }
-        public List<LinkInfo>? Links { get; set; }
-        public string? OutputFileBase64 { get; set; }
-        public string? Error { get; set; }
     }
 }
