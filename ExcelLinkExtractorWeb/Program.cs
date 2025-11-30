@@ -75,7 +75,7 @@ app.Use(async (context, next) =>
         "img-src 'self' data: https://pagead2.googlesyndication.com https://*.google.com https://*.gstatic.com https://*.doubleclick.net; " + // Allow AdSense images
         "font-src 'self' https://fonts.gstatic.com; " +
         "frame-src https://googleads.g.doubleclick.net https://tpc.googlesyndication.com; " + // Allow AdSense iframes
-        "connect-src 'self' wss: ws: https://pagead2.googlesyndication.com https://cloudflareinsights.com https://*.google.com https://*.doubleclick.net; " + // WebSocket for Blazor SignalR, AdSense and Cloudflare connections
+        "connect-src 'self' wss: ws: https://pagead2.googlesyndication.com https://cloudflareinsights.com https://*.google.com https://*.google https://*.doubleclick.net; " + // WebSocket for Blazor SignalR, AdSense and Cloudflare connections
         "frame-ancestors 'none'; " +
         "base-uri 'self'; " +
         "form-action 'self'");
