@@ -1,0 +1,29 @@
+@using ExcelLinkExtractorWeb.Services.LinkExtractor.Models
+
+<div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+    <table class="table table-sm table-hover">
+        <thead class="table-light sticky-top">
+            <tr>
+                <th>#</th>
+                <th>Title</th>
+                <th>URL</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var link in Links)
+            {
+                <tr>
+                    <td>@link.Row</td>
+                    <td class="text-truncate" style="max-width: 200px;">@link.Title</td>
+                    <td class="text-truncate" style="max-width: 300px;">
+                        <a href="@link.Url" target="_blank" rel="noopener noreferrer">@link.Url</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    [Parameter] public IEnumerable<LinkInfo> Links { get; set; } = Enumerable.Empty<LinkInfo>();
+}

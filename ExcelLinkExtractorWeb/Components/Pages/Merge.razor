@@ -39,68 +39,23 @@
     }
     else if (result != null)
     {
-        <!-- Result -->
-        <div class="card shadow-sm mb-4">
-            <div class="card-header bg-success text-white">
-                <h2 class="mb-0 h5">Merge Complete!</h2>
-            </div>
-            <div class="card-body">
-                <div class="row text-center mb-4">
-                    <div class="col-md-6">
-                        <div class="fs-1 fw-bold text-success">@result.TotalRows</div>
-                        <div class="text-muted">Total Rows</div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="fs-1 fw-bold text-primary">@result.LinksCreated</div>
-                        <div class="text-muted">Hyperlinks Created</div>
-                    </div>
-                </div>
+        <ResultCard Title="Merge Complete!" HeaderClass="bg-success text-white"
+                    Stats="@GetMergeStats()">
+            @if (result.Links?.Any() == true)
+            {
+                <h6 class="mb-3">Preview (First 10)</h6>
+                <ResultPreviewTable Links="result.Links.Select(l => new ExcelLinkExtractorWeb.Services.LinkExtractor.Models.LinkInfo { Row = l.Row, Title = l.Title, Url = l.Url })" />
+            }
 
-                @if (result.Links?.Any() == true)
-                {
-                    <h6 class="mb-3">Preview (First 10)</h6>
-                    <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
-                        <table class="table table-sm table-hover">
-                            <thead class="table-light sticky-top">
-                                <tr>
-                                    <th>#</th>
-                                    <th>Title</th>
-                                    <th>URL</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var link in result.Links)
-                                {
-                                    <tr>
-                                        <td>@link.Row</td>
-                                        <td class="text-truncate" style="max-width: 200px;">@link.Title</td>
-                                        <td class="text-truncate" style="max-width: 300px;">
-                                            <a href="@link.Url" target="_blank" rel="noopener noreferrer">@link.Url</a>
-                                        </td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
-                    </div>
-                }
+            <ResultActions PrimaryText="Download Result"
+                           PrimaryButtonClass="btn btn-success btn-lg"
+                           OnPrimary="DownloadResult"
+                           SecondaryText="Process New File"
+                           SecondaryButtonClass="btn btn-outline-secondary btn-lg"
+                           OnSecondary="Reset" />
 
-                <div class="d-flex gap-2 mt-4 justify-content-center">
-                    <button class="btn btn-success btn-lg" @onclick="DownloadResult">
-                        Download Result
-                    </button>
-                    <button class="btn btn-outline-secondary btn-lg" @onclick="Reset">
-                        Process New File
-                    </button>
-                </div>
-
-                <div class="text-center mt-3">
-                    <a href="https://buymeacoffee.com/hyunjo" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-warning text-white">
-                        ☕ Buy me a coffee
-                    </a>
-                    <p class="mt-2 small text-muted">Like this tool? Support its development!</p>
-                </div>
-            </div>
-        </div>
+            <SupportFooter />
+        </ResultCard>
     }
     else
     {
@@ -173,6 +128,12 @@
     private string? originalFileName;
     private IBrowserFile? selectedFile;
     private PersistingComponentStateSubscription persistingSubscription;
+
+    private ResultCard.ResultStat[] GetMergeStats() => new[]
+    {
+        new ResultCard.ResultStat("Total Rows", result?.TotalRows.ToString() ?? "0", "text-success"),
+        new ResultCard.ResultStat("Hyperlinks Created", result?.LinksCreated.ToString() ?? "0", "text-primary")
+    };
 
     protected override void OnInitialized()
     {

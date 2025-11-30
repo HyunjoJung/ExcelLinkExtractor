@@ -1,0 +1,33 @@
+<div class="card shadow-sm mb-4">
+    <div class="card-header @HeaderClass">
+        <h2 class="mb-0 h5">@Title</h2>
+    </div>
+    <div class="card-body">
+        @if (Stats.Any())
+        {
+            <div class="row text-center mb-4">
+                @foreach (var stat in Stats)
+                {
+                    <div class="col-md-6">
+                        <div class="fs-1 fw-bold @stat.ValueClass">@stat.Value</div>
+                        <div class="text-muted">@stat.Label</div>
+                    </div>
+                }
+            </div>
+        }
+
+        @if (ChildContent is not null)
+        {
+            @ChildContent
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public string Title { get; set; } = string.Empty;
+    [Parameter] public string HeaderClass { get; set; } = "bg-success text-white";
+    [Parameter] public IEnumerable<ResultStat> Stats { get; set; } = Enumerable.Empty<ResultStat>();
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    public record ResultStat(string Label, string Value, string ValueClass = "text-primary");
+}
