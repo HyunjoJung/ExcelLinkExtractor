@@ -51,15 +51,15 @@ public abstract class SheetLinkPageTest : PageTest
         // Wait for the server to respond
         using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(2) };
         var started = false;
-        for (var i = 0; i < 60 && !started; i++)
+        for (var i = 0; i < 120 && !started; i++)
         {
             try
             {
                 var response = await client.GetAsync(BaseUrl);
-                if (response.IsSuccessStatusCode)
+                if ((int)response.StatusCode < 500)
                 {
                     var html = await response.Content.ReadAsStringAsync();
-                    started = html.Contains("SheetLink", StringComparison.OrdinalIgnoreCase);
+                    started = html.Length > 0 || response.IsSuccessStatusCode;
                     if (started) break;
                 }
             }

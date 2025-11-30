@@ -1,7 +1,7 @@
 using ExcelLinkExtractorWeb.Components;
 using ExcelLinkExtractorWeb.Configuration;
-using ExcelLinkExtractorWeb.Services;
 using ExcelLinkExtractorWeb.Services.Health;
+using ExcelLinkExtractorWeb.Services.LinkExtractor;
 using ExcelLinkExtractorWeb.Services.Metrics;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.StaticFiles;

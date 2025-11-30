@@ -398,6 +398,9 @@ Google   | https://google.com
 - **E001**: Invalid file format (not XLSX/XLS, wrong signature)
 - **E002**: Required column missing
 - **E003**: Excel processing error
+- **E010**: File too large to process (OutOfMemory)
+- **E011**: Could not read file (corrupted/locked)
+- **E012**: Permission denied when reading file
 - **E999**: Unexpected error during processing
 
 **Prevention**: Process files one at a time, avoid automation.

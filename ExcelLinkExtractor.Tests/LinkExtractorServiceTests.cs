@@ -2,7 +2,7 @@ using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Spreadsheet;
 using ExcelLinkExtractorWeb.Configuration;
-using ExcelLinkExtractorWeb.Services;
+using ExcelLinkExtractorWeb.Services.LinkExtractor;
 using ExcelLinkExtractorWeb.Services.Metrics;
 using FluentAssertions;
 using Microsoft.Extensions.Caching.Memory;

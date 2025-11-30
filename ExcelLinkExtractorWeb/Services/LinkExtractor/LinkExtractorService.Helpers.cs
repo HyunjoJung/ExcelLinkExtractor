@@ -1,7 +1,7 @@
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Spreadsheet;
 
-namespace ExcelLinkExtractorWeb.Services;
+namespace ExcelLinkExtractorWeb.Services.LinkExtractor;
 
 public partial class LinkExtractorService
 {
@@ -65,9 +65,6 @@ public partial class LinkExtractorService
         return columnName + rowIndex;
     }
 
-    /// <summary>
-    /// Sanitizes and validates a URL for use in Excel hyperlinks.
-    /// </summary>
     private static string? SanitizeUrl(string? url)
     {
         if (string.IsNullOrWhiteSpace(url))
@@ -75,11 +72,9 @@ public partial class LinkExtractorService
 
         url = url.Trim();
 
-        // Excel hyperlink limit
         if (url.Length > 2000)
             return null;
 
-        // Add protocol if missing
         if (!url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
             !url.StartsWith("https://", StringComparison.OrdinalIgnoreCase) &&
             !url.StartsWith("mailto:", StringComparison.OrdinalIgnoreCase))
@@ -87,11 +82,9 @@ public partial class LinkExtractorService
             url = "https://" + url;
         }
 
-        // Validate URL format
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
             return null;
 
-        // Only allow http, https, mailto schemes
         if (uri.Scheme != "http" && uri.Scheme != "https" && uri.Scheme != "mailto")
             return null;
 

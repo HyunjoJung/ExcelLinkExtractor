@@ -1,15 +1,10 @@
+using ExcelLinkExtractorWeb.Configuration;
 using Microsoft.Extensions.Logging;
 
-namespace ExcelLinkExtractorWeb.Services;
+namespace ExcelLinkExtractorWeb.Services.LinkExtractor;
 
 public partial class LinkExtractorService
 {
-    /// <summary>
-    /// Validates that the uploaded file is a valid Excel file.
-    /// </summary>
-    /// <param name="fileStream">The file stream to validate</param>
-    /// <param name="fileName">The name of the file for logging purposes</param>
-    /// <exception cref="InvalidFileFormatException">Thrown when file is invalid or too large</exception>
     private void ValidateExcelFile(Stream fileStream, string fileName = "unknown")
     {
         if (fileStream.Length > _options.MaxFileSizeBytes)
@@ -30,11 +25,9 @@ public partial class LinkExtractorService
             );
         }
 
-        // Validate file signature (magic bytes)
         var buffer = new byte[8];
         var originalPosition = fileStream.Position;
         fileStream.Position = 0;
-
         var bytesRead = fileStream.Read(buffer, 0, buffer.Length);
         fileStream.Position = originalPosition;
 
@@ -47,13 +40,11 @@ public partial class LinkExtractorService
             );
         }
 
-        // Check for .xlsx signature (ZIP/PK format)
         bool isXlsx = buffer[0] == XlsxSignature[0] &&
                       buffer[1] == XlsxSignature[1] &&
                       buffer[2] == XlsxSignature[2] &&
                       buffer[3] == XlsxSignature[3];
 
-        // Check for .xls signature (OLE2 format)
         bool isXls = bytesRead >= 8 &&
                      buffer[0] == XlsSignature[0] &&
                      buffer[1] == XlsSignature[1] &&
