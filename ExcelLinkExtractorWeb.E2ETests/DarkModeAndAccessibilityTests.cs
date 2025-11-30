@@ -4,108 +4,8 @@ using NUnit.Framework;
 namespace ExcelLinkExtractorWeb.E2ETests;
 
 [TestFixture]
-public class DarkModeAndAccessibilityTests : SheetLinkPageTest
+public class AccessibilityTests : SheetLinkPageTest
 {
-    [Test]
-    public async Task DarkModeToggle_ShouldBeVisible()
-    {
-        await Page.AddInitScriptAsync("if(!localStorage.getItem('sheetlink-theme')) localStorage.setItem('sheetlink-theme','light');");
-        await Page.GotoAsync(BaseUrl);
-        await WaitForHomeInteractiveAsync();
-
-        // Check theme toggle button
-        var themeToggle = Page.Locator(".theme-toggle");
-        await Expect(themeToggle).ToBeVisibleAsync();
-    }
-
-    [Test]
-    public async Task DarkModeToggle_ShouldChangeTheme()
-    {
-        await Page.AddInitScriptAsync("if(!localStorage.getItem('sheetlink-theme')) localStorage.setItem('sheetlink-theme','light');");
-        await Page.GotoAsync(BaseUrl);
-        await WaitForHomeInteractiveAsync();
-
-        // Wait for page to load
-        await Page.WaitForTimeoutAsync(1000);
-
-        // Get initial theme
-        var initialTheme = await Page.Locator("html").GetAttributeAsync("data-theme");
-
-        // Click theme toggle
-        var themeToggle = Page.Locator(".theme-toggle");
-        await themeToggle.ClickAsync();
-
-        // Wait for theme to change
-        await Page.WaitForTimeoutAsync(500);
-
-        // Get new theme
-        var newTheme = await Page.Locator("html").GetAttributeAsync("data-theme");
-
-        // Theme should have changed
-        Assert.That(newTheme, Is.Not.EqualTo(initialTheme));
-    }
-
-    [Test]
-    public async Task DarkModeToggle_ShouldPersistTheme()
-    {
-        await Page.AddInitScriptAsync("if(!localStorage.getItem('sheetlink-theme')) localStorage.setItem('sheetlink-theme','light');");
-        await Page.GotoAsync(BaseUrl);
-        await WaitForHomeInteractiveAsync();
-
-        // Wait for page to load
-        await Page.WaitForTimeoutAsync(1000);
-
-        // Click theme toggle to set dark mode
-        var themeToggle = Page.Locator(".theme-toggle");
-        await themeToggle.ClickAsync();
-        await Page.WaitForTimeoutAsync(500);
-
-        // Get theme after toggle
-        var theme = await Page.Locator("html").GetAttributeAsync("data-theme");
-
-        // Reload page
-        await Page.ReloadAsync();
-        await Page.WaitForTimeoutAsync(1000);
-
-        // Theme should persist
-        var persistedTheme = await Page.Locator("html").GetAttributeAsync("data-theme");
-        Assert.That(persistedTheme, Is.EqualTo(theme));
-    }
-
-    [Test]
-    public async Task DarkModeToggle_ShouldHaveAccessibleLabel()
-    {
-        await Page.AddInitScriptAsync("if(!localStorage.getItem('sheetlink-theme')) localStorage.setItem('sheetlink-theme','light');");
-        await Page.GotoAsync(BaseUrl);
-        await WaitForHomeInteractiveAsync();
-
-        // Check aria-label on theme toggle
-        var themeToggle = Page.Locator(".theme-toggle");
-        var ariaLabel = await themeToggle.GetAttributeAsync("aria-label");
-
-        Assert.That(ariaLabel, Is.Not.Null);
-        Assert.That(ariaLabel, Does.Contain("mode").IgnoreCase);
-    }
-
-    [Test]
-    public async Task DarkModeToggle_ShouldShowCorrectIcon()
-    {
-        await Page.AddInitScriptAsync("if(!localStorage.getItem('sheetlink-theme')) localStorage.setItem('sheetlink-theme','light');");
-        await Page.GotoAsync(BaseUrl);
-        await WaitForHomeInteractiveAsync();
-
-        var themeToggle = Page.Locator(".theme-toggle");
-
-        // In light mode the icon should be moon
-        await Expect(themeToggle).ToHaveTextAsync("🌙");
-
-        await themeToggle.ClickAsync();
-        await Page.WaitForTimeoutAsync(300);
-
-        // After toggling to dark mode the icon should be sun
-        await Expect(themeToggle).ToHaveTextAsync("☀️");
-    }
-
     [Test]
     public async Task SkipToContentLink_ShouldWork()
     {
@@ -150,25 +50,6 @@ public class DarkModeAndAccessibilityTests : SheetLinkPageTest
         // Label should exist (even if visually hidden)
         var labelText = await label.TextContentAsync();
         Assert.That(labelText, Is.Not.Null.Or.Empty);
-    }
-
-    [Test]
-    public async Task KeyboardNavigation_ShouldWork()
-    {
-        await Page.GotoAsync(BaseUrl);
-        await WaitForHomeInteractiveAsync();
-
-        // Verify theme toggle is focusable by checking it can receive focus
-        var themeToggle = Page.Locator(".theme-toggle");
-        await themeToggle.WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = 15000 });
-
-        // Focus the theme toggle directly
-        await themeToggle.FocusAsync();
-
-        // Verify it's focused
-        var isFocused = await Page.EvaluateAsync<bool>("document.activeElement && document.activeElement.classList.contains('theme-toggle')");
-
-        Assert.That(isFocused, Is.True, "Theme toggle should be focusable");
     }
 
     [Test]

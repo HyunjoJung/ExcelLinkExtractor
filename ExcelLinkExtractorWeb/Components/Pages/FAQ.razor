@@ -20,13 +20,13 @@
 
         .faq-item {
             margin-bottom: 1rem;
-            border: 1px solid #dee2e6;
+            border: 1px solid var(--bs-border-color);
             border-radius: 0.375rem;
             overflow: hidden;
         }
 
         .faq-item details {
-            background: white;
+            background: var(--bs-body-bg);
         }
 
         .faq-item summary {
@@ -34,7 +34,8 @@
             padding: 1rem 1.25rem;
             font-weight: 600;
             font-size: 1rem;
-            background: white;
+            background: var(--bs-body-bg);
+            color: var(--bs-body-color);
             list-style: none;
             user-select: none;
             transition: background-color 0.15s ease-in-out;
@@ -57,12 +58,14 @@
         }
 
         .faq-item summary:hover {
-            background-color: #f8f9fa;
+            background-color: var(--bs-secondary-bg);
         }
 
         .faq-content {
             padding: 1rem 1.25rem;
-            border-top: 1px solid #dee2e6;
+            border-top: 1px solid var(--bs-border-color);
+            background: var(--bs-body-bg);
+            color: var(--bs-body-color);
             animation: fadeIn 0.2s ease-in-out;
         }
 
