@@ -94,7 +94,6 @@ app.UseRateLimiter();
 app.UseAntiforgery();
 
 app.UseResponseCaching();
-app.UseHttpMetrics();
 
 var staticFileOptions = new StaticFileOptions
 {
