@@ -72,9 +72,9 @@ app.Use(async (context, next) =>
         "default-src 'self'; " +
         "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://pagead2.googlesyndication.com https://googletagservices.com https://static.cloudflareinsights.com https://*.google.com https://*.google https://*.gstatic.com; " + // Blazor requires unsafe-eval, allow AdSense and Cloudflare
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " + // Inline styles for Blazor
-        "img-src 'self' data: https://pagead2.googlesyndication.com https://*.google.com https://*.gstatic.com https://*.doubleclick.net; " + // Allow AdSense images
+        "img-src 'self' data: https://pagead2.googlesyndication.com https://*.google.com https://*.google https://*.gstatic.com https://*.doubleclick.net; " + // Allow AdSense images
         "font-src 'self' https://fonts.gstatic.com; " +
-        "frame-src https://googleads.g.doubleclick.net https://tpc.googlesyndication.com; " + // Allow AdSense iframes
+        "frame-src https://googleads.g.doubleclick.net https://tpc.googlesyndication.com https://*.google.com https://*.google; " + // Allow AdSense iframes
         "connect-src 'self' wss: ws: https://pagead2.googlesyndication.com https://cloudflareinsights.com https://*.google.com https://*.google https://*.doubleclick.net; " + // WebSocket for Blazor SignalR, AdSense and Cloudflare connections
         "frame-ancestors 'none'; " +
         "base-uri 'self'; " +
