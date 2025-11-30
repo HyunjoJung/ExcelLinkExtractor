@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="ExcelLinkExtractor.Tests/ExcelLinkExtractor.Tests.csproj" />
+  <Project Path="ExcelLinkExtractorWeb.E2ETests/ExcelLinkExtractorWeb.E2ETests.csproj" />
+  <Project Path="ExcelLinkExtractorWeb/ExcelLinkExtractorWeb.csproj" />
+</Solution>
