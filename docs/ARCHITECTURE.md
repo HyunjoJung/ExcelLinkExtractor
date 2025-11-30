@@ -25,25 +25,26 @@ ExcelLinkExtractor/
 │   │   │   ├── Home.razor              # Link extraction page
 │   │   │   ├── Merge.razor             # Link merging page
 │   │   │   └── FAQ.razor               # FAQ page
-│   │   ├── Shared/                     # Reusable UI pieces (e.g., SkeletonPlaceholder)
-│   │   └── Layout/                     # Layout components
-│   │       ├── MainLayout.razor        # Main application layout
-│   │       └── App.razor               # Root component
+│   │   ├── Shared/                     # Reusable UI (ResultCard, FileUploadPanel, HowToUseCard, StepCard)
+│   │   └── Layout/                     # MainLayout, NavMenu, App
 │   ├── Services/                       # Business logic layer
-│   │   ├── ILinkExtractorService.cs    # Service interface
-│   │   ├── LinkExtractorService.cs     # Core Excel processing (partial class)
-│   │   ├── LinkExtractorService.Validation.cs # File validation (size/signature)
-│   │   ├── LinkExtractorService.Helpers.cs    # OpenXML helpers + URL sanitization
+│   │   ├── LinkExtractor/              # Partial LinkExtractorService split by concern
+│   │   │   ├── LinkExtractorService.Extract.cs
+│   │   │   ├── LinkExtractorService.Merge.cs
+│   │   │   ├── LinkExtractorService.Template.cs
+│   │   │   ├── LinkExtractorService.Validation.cs
+│   │   │   ├── LinkExtractorService.Helpers.cs
+│   │   │   └── LinkExtractorService.Shared.cs
+│   │   ├── Metrics/                    # IMetricsService + in-memory implementation
+│   │   ├── Health/                     # /health endpoint
 │   │   └── ExcelProcessingException.cs # Custom exceptions
 │   ├── Configuration/                  # Configuration classes
 │   │   └── ExcelProcessingOptions.cs   # App settings configuration
 │   ├── wwwroot/                        # Static files
 │   ├── Program.cs                      # Application startup
 │   └── appsettings.json                # Configuration
-├── ExcelLinkExtractor.Tests/           # Unit tests
-│   └── LinkExtractorServiceTests.cs    # Service tests (11 tests)
-└── scripts/                            # Deployment scripts
-    └── deploy.sh                       # Automated deployment
+├── ExcelLinkExtractor.Tests/           # Unit tests (xUnit + FluentAssertions)
+└── ExcelLinkExtractorWeb.E2ETests/     # Playwright E2E (NUnit)
 ```
 
 ## Architecture Layers
@@ -80,13 +81,14 @@ public interface ILinkExtractorService
 }
 ```
 
-**LinkExtractorService** (900 lines):
-- **File Validation**: Magic bytes (XLSX/XLS), file size, empty file detection
+**LinkExtractorService** (partial class):
+- **Validation**: Magic bytes (XLSX/XLS), file size, empty file detection
 - **Excel Processing**: DocumentFormat.OpenXml for reading/writing
 - **Header Detection**: Searches first 10 rows for column headers
 - **Link Extraction**: Extracts hyperlinks from cells, validates URLs
 - **Link Merging**: Combines Title + URL columns into clickable hyperlinks
 - **Template Generation**: Creates sample Excel files with proper formatting
+- **Shared helpers**: URL sanitization, worksheet creation, metrics updates
 
 **Performance Optimizations**:
 - **Stylesheet Caching**: `Lazy<Stylesheet>` singleton, cloned for each use

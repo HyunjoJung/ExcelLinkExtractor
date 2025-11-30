@@ -6,3 +6,4 @@
 - `TROUBLESHOOTING.md`: Common issues (build/run/test) and fixes.
 - `CONTRIBUTING.md`: Contribution steps, code style, and PR expectations.
 - `lighthouse-score.jpg`: Lighthouse performance snapshot.
+- Root-level `AGENTS.md`: Contributor guide (commands, style, PR/testing expectations).

@@ -140,16 +140,17 @@ ExcelLinkExtractor/
 ├── ExcelLinkExtractorWeb/              # Main web application
 │   ├── Components/
 │   │   ├── Pages/                      # Blazor pages
-│   │   └── Layout/                     # Layout components
+│   │   ├── Shared/                     # Reusable UI (ResultCard, FileUploadPanel, HowToUseCard, StepCard)
+│   │   └── Layout/                     # Layout components and navigation
 │   ├── Services/                       # Business logic
-│   │   ├── ILinkExtractorService.cs    # Service interface
-│   │   └── LinkExtractorService.cs     # Core service implementation
+│   │   ├── LinkExtractor/              # Partial service split by concern
+│   │   ├── Metrics/                    # IMetricsService implementation
+│   │   └── Health/                     # Health checks
 │   ├── Configuration/                  # Configuration classes
 │   └── wwwroot/                        # Static files
-├── ExcelLinkExtractor.Tests/           # Unit tests
-├── ARCHITECTURE.md                     # Architecture documentation
-├── SECURITY.md                         # Security policy
-└── CONFIGURATION.md                    # Configuration guide
+├── ExcelLinkExtractor.Tests/           # Unit tests (xUnit)
+├── ExcelLinkExtractorWeb.E2ETests/     # Playwright + NUnit E2E tests
+└── docs/                               # Architecture, security, configuration, troubleshooting
 ```
 
 ### Configuration

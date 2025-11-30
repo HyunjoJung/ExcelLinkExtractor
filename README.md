@@ -79,7 +79,6 @@ docker compose up -d
 **Automated Deployment:**
 - Docker images are automatically built on every push to master via GitHub Actions
 - Published to [hyunjojung/sheetlink](https://hub.docker.com/r/hyunjojung/sheetlink) on Docker Hub
-- Deploy to production server using `./scripts/deploy.sh`
 
 See [Docker Deployment Guide](docs/DOCKER_DEPLOYMENT.md) for production deployment.
 
@@ -97,6 +96,10 @@ DOTNET_ROOT=/home/dev/.dotnet dotnet test ExcelLinkExtractorWeb.E2ETests/ExcelLi
 
 # Coverage (writes cobertura to TestResults/coverage)
 dotnet test ExcelLinkExtractor.Tests/ExcelLinkExtractor.Tests.csproj /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura /p:CoverletOutput=TestResults/coverage/
+
+# Health/metrics (local)
+curl http://localhost:5050/health
+curl http://localhost:5050/metrics
 ```
 
 ## Project Structure
@@ -105,10 +108,13 @@ dotnet test ExcelLinkExtractor.Tests/ExcelLinkExtractor.Tests.csproj /p:CollectC
 ExcelLinkExtractor/
 ├── ExcelLinkExtractorWeb/          # Main web application
 │   ├── Components/
-│   │   ├── Pages/                  # Blazor pages (Home, Merge, FAQ)
-│   │   └── Layout/                 # Layout components
-│   ├── Services/                   # Business logic
-│   │   └── LinkExtractorService.cs # Excel processing
+│   │   ├── Pages/                  # Blazor pages (Home, Merge, FAQ, Error)
+│   │   ├── Shared/                 # Reusable UI (ResultCard, FileUploadPanel, HowToUseCard)
+│   │   └── Layout/                 # Layout components and navigation
+│   ├── Services/
+│   │   ├── LinkExtractor/          # Excel processing split by concern (partial class)
+│   │   ├── Metrics/                # In-memory metrics service
+│   │   └── Health/                 # Health checks
 │   └── wwwroot/                    # Static files
 └── LICENSE                         # Apache License 2.0
 ```
