@@ -70,11 +70,11 @@ app.Use(async (context, next) =>
     // Content Security Policy
     context.Response.Headers.Append("Content-Security-Policy",
         "default-src 'self'; " +
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " + // Blazor requires unsafe-eval
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://pagead2.googlesyndication.com https://static.cloudflareinsights.com; " + // Blazor requires unsafe-eval, allow AdSense and Cloudflare
         "style-src 'self' 'unsafe-inline'; " + // Inline styles for Blazor
-        "img-src 'self' data:; " +
+        "img-src 'self' data: https://pagead2.googlesyndication.com; " + // Allow AdSense images
         "font-src 'self'; " +
-        "connect-src 'self' wss: ws:; " + // WebSocket for Blazor SignalR
+        "connect-src 'self' wss: ws: https://pagead2.googlesyndication.com https://cloudflareinsights.com; " + // WebSocket for Blazor SignalR, AdSense and Cloudflare connections
         "frame-ancestors 'none'; " +
         "base-uri 'self'; " +
         "form-action 'self'");
