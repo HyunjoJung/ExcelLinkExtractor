@@ -246,6 +246,7 @@ public partial class LinkExtractorService : ILinkExtractorService
             sw.Stop();
             context.Duration = sw.Elapsed;
             _metrics.RecordFileProcessed(context.InputBytes, context.Rows, context.Duration);
+            RecordPrometheusMetrics("extract", result.ErrorMessage == null ? "success" : "failed", context, context.Duration);
         }
 
         return result;

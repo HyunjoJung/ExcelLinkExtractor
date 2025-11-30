@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.Options;
 using System.Threading.RateLimiting;
+using Prometheus;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -93,6 +94,7 @@ app.UseRateLimiter();
 app.UseAntiforgery();
 
 app.UseResponseCaching();
+app.UseHttpMetrics();
 
 var staticFileOptions = new StaticFileOptions
 {
@@ -109,11 +111,6 @@ app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 app.MapHealthChecks("/health");
-app.MapGet("/metrics", (IMetricsService metrics, HttpResponse response) =>
-{
-    var snapshot = metrics.GetSnapshot();
-    response.Headers.CacheControl = "no-store, no-cache";
-    return Results.Json(snapshot, statusCode: 200);
-});
+app.MapMetrics("/metrics");
 
 app.Run();

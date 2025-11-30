@@ -202,6 +202,7 @@ public partial class LinkExtractorService
             sw.Stop();
             context.Duration = sw.Elapsed;
             _metrics.RecordFileProcessed(context.InputBytes, context.Rows, context.Duration);
+            RecordPrometheusMetrics("merge", result.ErrorMessage == null ? "success" : "failed", context, context.Duration);
         }
 
         return result;

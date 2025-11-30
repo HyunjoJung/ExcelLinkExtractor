@@ -57,7 +57,7 @@ The app exposes a basic health endpoint at `/health` (memory/disk check) for pro
 
 ### Metrics
 
-Basic in-memory metrics are available at `/metrics` (counts, rows, bytes, errors) for local/ops inspection.
+Prometheus exposition is available at `/metrics` (powered by prometheus-net) with counters/histograms for extract/merge. Scrape with Prometheus or query locally with `curl http://localhost:5050/metrics`.
 
 ### Caching
 

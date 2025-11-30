@@ -720,6 +720,26 @@ public class ExcelProcessingOptions
 
 **Monitoring**: Track 429 responses to detect abuse
 
+### 3. Metrics (Prometheus)
+
+**Purpose**: Observe extraction/merge performance and HTTP traffic.
+
+**Endpoint**: `/metrics` (Prometheus text format via prometheus-net).
+
+**Scrape Example**:
+```yaml
+scrape_configs:
+  - job_name: "sheetlink"
+    scrape_interval: 15s
+    static_configs:
+      - targets: ["localhost:5050"]
+```
+
+**What’s Exported**:
+- Counters: files processed (by operation/status), rows processed, input bytes.
+- Histogram: processing duration (seconds) per operation.
+- HTTP request metrics via `UseHttpMetrics`.
+
 ### 3. File Size Limits
 
 **Risk**: Memory exhaustion, DoS
