@@ -40,6 +40,12 @@
         applyTheme(next);
     }
 
+    // Ensure the toggle icon is updated after the DOM is ready (button exists)
+    function refreshToggleIcon() {
+        const current = document.documentElement.getAttribute(THEME_ATTR) || getInitialTheme();
+        applyTheme(current);
+    }
+
     // Initialize theme on page load
     function initTheme() {
         const theme = getInitialTheme();
@@ -58,6 +64,7 @@
 
     // Initialize immediately (before DOM ready to prevent flash)
     initTheme();
+    document.addEventListener('DOMContentLoaded', refreshToggleIcon);
 
     // Expose toggle function globally for button click
     window.toggleTheme = toggleTheme;
@@ -65,5 +72,6 @@
     // Re-apply theme after Blazor reconnects (in case of SignalR reconnection)
     if (window.Blazor) {
         window.Blazor.addEventListener('enhancedload', initTheme);
+        window.Blazor.addEventListener('afterWebStarted', refreshToggleIcon);
     }
 })();

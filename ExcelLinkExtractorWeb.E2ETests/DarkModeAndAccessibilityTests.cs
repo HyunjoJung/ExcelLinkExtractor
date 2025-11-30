@@ -9,6 +9,7 @@ public class DarkModeAndAccessibilityTests : SheetLinkPageTest
     [Test]
     public async Task DarkModeToggle_ShouldBeVisible()
     {
+        await Page.AddInitScriptAsync("if(!localStorage.getItem('sheetlink-theme')) localStorage.setItem('sheetlink-theme','light');");
         await Page.GotoAsync(BaseUrl);
         await WaitForHomeInteractiveAsync();
 
@@ -20,6 +21,7 @@ public class DarkModeAndAccessibilityTests : SheetLinkPageTest
     [Test]
     public async Task DarkModeToggle_ShouldChangeTheme()
     {
+        await Page.AddInitScriptAsync("if(!localStorage.getItem('sheetlink-theme')) localStorage.setItem('sheetlink-theme','light');");
         await Page.GotoAsync(BaseUrl);
         await WaitForHomeInteractiveAsync();
 
@@ -46,6 +48,7 @@ public class DarkModeAndAccessibilityTests : SheetLinkPageTest
     [Test]
     public async Task DarkModeToggle_ShouldPersistTheme()
     {
+        await Page.AddInitScriptAsync("if(!localStorage.getItem('sheetlink-theme')) localStorage.setItem('sheetlink-theme','light');");
         await Page.GotoAsync(BaseUrl);
         await WaitForHomeInteractiveAsync();
 
@@ -72,6 +75,7 @@ public class DarkModeAndAccessibilityTests : SheetLinkPageTest
     [Test]
     public async Task DarkModeToggle_ShouldHaveAccessibleLabel()
     {
+        await Page.AddInitScriptAsync("if(!localStorage.getItem('sheetlink-theme')) localStorage.setItem('sheetlink-theme','light');");
         await Page.GotoAsync(BaseUrl);
         await WaitForHomeInteractiveAsync();
 
@@ -81,6 +85,25 @@ public class DarkModeAndAccessibilityTests : SheetLinkPageTest
 
         Assert.That(ariaLabel, Is.Not.Null);
         Assert.That(ariaLabel, Does.Contain("mode").IgnoreCase);
+    }
+
+    [Test]
+    public async Task DarkModeToggle_ShouldShowCorrectIcon()
+    {
+        await Page.AddInitScriptAsync("if(!localStorage.getItem('sheetlink-theme')) localStorage.setItem('sheetlink-theme','light');");
+        await Page.GotoAsync(BaseUrl);
+        await WaitForHomeInteractiveAsync();
+
+        var themeToggle = Page.Locator(".theme-toggle");
+
+        // In light mode the icon should be moon
+        await Expect(themeToggle).ToHaveTextAsync("🌙");
+
+        await themeToggle.ClickAsync();
+        await Page.WaitForTimeoutAsync(300);
+
+        // After toggling to dark mode the icon should be sun
+        await Expect(themeToggle).ToHaveTextAsync("☀️");
     }
 
     [Test]

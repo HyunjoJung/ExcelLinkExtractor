@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
-namespace ExcelLinkExtractorWeb.Services;
+namespace ExcelLinkExtractorWeb.Services.Health;
 
 /// <summary>
 /// Basic system health check to ensure the process has headroom (memory/disk).

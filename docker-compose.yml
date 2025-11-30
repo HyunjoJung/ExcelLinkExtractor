@@ -1,0 +1,10 @@
+version: "3.9"
+services:
+  sheetlink:
+    build: .
+    ports:
+      - "5050:5050"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ExcelProcessing__RateLimitPerMinute: 500
+    restart: unless-stopped

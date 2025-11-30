@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore
+
+      - name: Install Playwright browsers
+        run: pwsh ExcelLinkExtractorWeb.E2ETests/bin/Debug/net10.0/playwright.ps1 install --with-deps
+
+      - name: Unit tests
+        run: dotnet test ExcelLinkExtractor.Tests/ExcelLinkExtractor.Tests.csproj --no-build
+
+      - name: E2E tests
+        env:
+          DOTNET_ROOT: /usr/share/dotnet
+        run: dotnet test ExcelLinkExtractorWeb.E2ETests/ExcelLinkExtractorWeb.E2ETests.csproj --no-build

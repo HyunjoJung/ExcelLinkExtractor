@@ -53,9 +53,21 @@ dotnet publish ExcelLinkExtractorWeb -c Release -o ./publish
 
 The app exposes a basic health endpoint at `/health` (memory/disk check) for probes/load balancers.
 
+### Metrics
+
+Basic in-memory metrics are available at `/metrics` (counts, rows, bytes, errors) for local/ops inspection.
+
 ### Caching
 
 Static assets are cacheable (1 week). Response caching is enabled for GET requests where applicable.
+
+### Docker
+
+```bash
+# Build and run
+docker compose up --build
+# App listens on http://localhost:5050
+```
 
 ## Development & Tests
 

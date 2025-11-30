@@ -393,6 +393,13 @@ Google   | https://google.com
 }
 ```
 
+### Error Codes (E-series)
+
+- **E001**: Invalid file format (not XLSX/XLS, wrong signature)
+- **E002**: Required column missing
+- **E003**: Excel processing error
+- **E999**: Unexpected error during processing
+
 **Prevention**: Process files one at a time, avoid automation.
 
 ---

@@ -1,6 +1,7 @@
 using ExcelLinkExtractorWeb.Components;
 using ExcelLinkExtractorWeb.Configuration;
 using ExcelLinkExtractorWeb.Services;
+using ExcelLinkExtractorWeb.Services.Health;
 using ExcelLinkExtractorWeb.Services.Metrics;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.StaticFiles;
@@ -108,5 +109,11 @@ app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 app.MapHealthChecks("/health");
+app.MapGet("/metrics", (IMetricsService metrics, HttpResponse response) =>
+{
+    var snapshot = metrics.GetSnapshot();
+    response.Headers.CacheControl = "no-store, no-cache";
+    return Results.Json(snapshot, statusCode: 200);
+});
 
 app.Run();

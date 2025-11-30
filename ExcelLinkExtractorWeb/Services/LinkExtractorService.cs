@@ -60,6 +60,16 @@ public partial class LinkExtractorService : ILinkExtractorService
     }
 
     /// <summary>
+    /// Summary of processing for diagnostics/metrics.
+    /// </summary>
+    private sealed class ProcessContext
+    {
+        public long InputBytes { get; init; }
+        public int Rows { get; set; }
+        public TimeSpan Duration { get; set; }
+    }
+
+    /// <summary>
     /// Extracts hyperlinks from a column in an Excel spreadsheet asynchronously.
     /// </summary>
     /// <param name="fileStream">The Excel file stream to process</param>
@@ -79,6 +89,8 @@ public partial class LinkExtractorService : ILinkExtractorService
     private ExtractionResult ExtractLinks(Stream fileStream, string linkColumnName)
     {
         var result = new ExtractionResult();
+        var context = new ProcessContext { InputBytes = fileStream.Length };
+        var sw = System.Diagnostics.Stopwatch.StartNew();
 
         try
         {
@@ -252,6 +264,8 @@ public partial class LinkExtractorService : ILinkExtractorService
 
             _logger.LogInformation("Link extraction completed successfully. Total rows: {TotalRows}, Links found: {LinksFound}",
                 result.TotalRows, result.LinksFound);
+
+            context.Rows = result.TotalRows;
         }
         catch (InvalidFileFormatException ex)
         {
@@ -272,6 +286,12 @@ public partial class LinkExtractorService : ILinkExtractorService
         {
             _logger.LogError(ex, "Unexpected error during link extraction");
             result.ErrorMessage = $"E999: Error processing file: {ex.Message}";
+        }
+        finally
+        {
+            sw.Stop();
+            context.Duration = sw.Elapsed;
+            _metrics.RecordFileProcessed(context.InputBytes, context.Rows, context.Duration);
         }
 
         return result;
@@ -525,6 +545,8 @@ public partial class LinkExtractorService : ILinkExtractorService
     private MergeResult MergeFromFile(Stream fileStream)
     {
         var result = new MergeResult();
+        var context = new ProcessContext { InputBytes = fileStream.Length };
+        var sw = System.Diagnostics.Stopwatch.StartNew();
 
         try
         {
@@ -709,6 +731,8 @@ public partial class LinkExtractorService : ILinkExtractorService
 
             _logger.LogInformation("Link merge completed successfully. Total rows: {TotalRows}, Links created: {LinksCreated}",
                 result.TotalRows, result.LinksCreated);
+
+            context.Rows = result.TotalRows;
         }
         catch (InvalidFileFormatException ex)
         {
@@ -729,6 +753,12 @@ public partial class LinkExtractorService : ILinkExtractorService
         {
             _logger.LogError(ex, "Unexpected error during link merge");
             result.ErrorMessage = $"E999: Error processing file: {ex.Message}";
+        }
+        finally
+        {
+            sw.Stop();
+            context.Duration = sw.Elapsed;
+            _metrics.RecordFileProcessed(context.InputBytes, context.Rows, context.Duration);
         }
 
         return result;
