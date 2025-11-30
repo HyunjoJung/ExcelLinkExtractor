@@ -81,22 +81,17 @@
             <!-- Step 2: Upload File -->
             <div class="col-md-6">
                 <StepCard Title="Step 2. Upload File" HeaderClass="bg-success text-white">
-                    <p class="text-muted mb-4">Upload your spreadsheet file with hyperlinks</p>
-                    @if (isInteractive)
-                    {
-                        <label for="fileInput" class="visually-hidden">Select spreadsheet file</label>
-                        <InputFile id="fileInput" OnChange="HandleFileSelected" accept=".xlsx,.xls" class="form-control" style="max-width: 300px; margin: 0 auto;" />
-                        <button class="btn btn-success btn-lg mt-3" @onclick="UploadFile" disabled="@(selectedFile == null)">
-                            Upload & Extract
-                        </button>
-                        <p class="mt-2 small text-muted">Max 10MB</p>
-                    }
-                    else
-                    {
-                        <SkeletonPlaceholder CssClass="skeleton skeleton-input" Style="max-width: 300px; margin: 0 auto;" />
-                        <SkeletonPlaceholder CssClass="skeleton skeleton-button mt-3" />
-                        <SkeletonPlaceholder CssClass="skeleton skeleton-text mt-2" Style="max-width: 80px; margin: 0 auto;" />
-                    }
+                    <FileUploadPanel
+                        InputId="fileInput"
+                        Label="Select spreadsheet file"
+                        Description="Upload your spreadsheet file with hyperlinks"
+                        ButtonText="Upload & Extract"
+                        ButtonClass="btn-success"
+                        Hint="Max 10MB"
+                        IsInteractive="isInteractive"
+                        IsSubmitDisabled="@(selectedFile == null)"
+                        OnFileSelected="HandleFileSelected"
+                        OnSubmit="UploadFile" />
                 </StepCard>
             </div>
         </div>
