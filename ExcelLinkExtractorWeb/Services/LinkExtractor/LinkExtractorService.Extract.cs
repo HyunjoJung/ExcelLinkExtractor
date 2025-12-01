@@ -91,6 +91,38 @@ public partial class LinkExtractorService : ILinkExtractorService
             var outputStream = new MemoryStream();
             using (var newDocument = SpreadsheetDocument.Create(outputStream, SpreadsheetDocumentType.Workbook))
             {
+                // Collect links first (no copy of original sheet)
+                var extractedLinks = new List<LinkInfo>();
+                var rows = sheetData.Elements<Row>()
+                    .Where(r => r.RowIndex != null && r.RowIndex.Value > headerRowIndex)
+                    .ToList();
+
+                foreach (var row in rows)
+                {
+                    foreach (var cell in row.Elements<Cell>())
+                    {
+                        if (cell.CellReference == null || string.IsNullOrEmpty(cell.CellReference.Value))
+                        {
+                            continue;
+                        }
+
+                        var colIndex = GetColumnIndex(cell.CellReference.Value);
+                        var cellValue = GetCellValue(cell, workbookPart);
+                        var hyperlink = GetHyperlink(worksheetPart, cell.CellReference.Value, hyperlinkMap);
+
+                        if (hyperlink != null && colIndex == targetColumnIndex)
+                        {
+                            var rowNumber = row.RowIndex?.Value != null ? (int)row.RowIndex.Value : 1;
+                            extractedLinks.Add(new LinkInfo
+                            {
+                                Row = rowNumber,
+                                Title = cellValue,
+                                Url = hyperlink
+                            });
+                        }
+                    }
+                }
+
                 var newWorkbookPart = newDocument.AddWorkbookPart();
                 newWorkbookPart.Workbook = new Workbook();
 
@@ -111,94 +143,70 @@ public partial class LinkExtractorService : ILinkExtractorService
                 var stylesPart = newWorkbookPart.AddNewPart<WorkbookStylesPart>();
                 stylesPart.Stylesheet = GetStylesheet();
 
-                var originalHeaderRow = sheetData.Elements<Row>()
-                    .FirstOrDefault(r => r.RowIndex != null && r.RowIndex.Value == headerRowIndex);
-                if (originalHeaderRow == null)
-                {
-                    throw new InvalidColumnException(linkColumnName, _options.MaxHeaderSearchRows);
-                }
-
                 var headerRow = new Row { RowIndex = 1 };
-                foreach (var cell in originalHeaderRow.Elements<Cell>())
+                headerRow.Append(new Cell
                 {
-                    if (cell.CellReference == null || string.IsNullOrEmpty(cell.CellReference.Value))
-                        continue;
-
-                    var newCell = new Cell
-                    {
-                        CellReference = GetCellReference(1, GetColumnIndex(cell.CellReference.Value)),
-                        DataType = CellValues.String,
-                        CellValue = new CellValue(GetCellValue(cell, workbookPart)),
-                        StyleIndex = 1
-                    };
-                    headerRow.Append(newCell);
-                }
+                    CellReference = "A1",
+                    DataType = CellValues.String,
+                    CellValue = new CellValue("Row"),
+                    StyleIndex = 1
+                });
+                headerRow.Append(new Cell
+                {
+                    CellReference = "B1",
+                    DataType = CellValues.String,
+                    CellValue = new CellValue(linkColumnName),
+                    StyleIndex = 1
+                });
+                headerRow.Append(new Cell
+                {
+                    CellReference = "C1",
+                    DataType = CellValues.String,
+                    CellValue = new CellValue("URL"),
+                    StyleIndex = 1
+                });
                 newSheetData.Append(headerRow);
 
                 uint newRowIndex = 2;
-                var rows = sheetData.Elements<Row>()
-                    .Where(r => r.RowIndex != null && r.RowIndex.Value > headerRowIndex)
-                    .ToList();
-
-                foreach (var row in rows)
+                foreach (var link in extractedLinks)
                 {
                     var newRow = new Row { RowIndex = newRowIndex };
-                    bool hasData = false;
 
-                    foreach (var cell in row.Elements<Cell>())
+                    newRow.Append(new Cell
                     {
-                        if (cell.CellReference == null || string.IsNullOrEmpty(cell.CellReference.Value))
-                        {
-                            continue;
-                        }
+                        CellReference = $"A{newRowIndex}",
+                        DataType = CellValues.Number,
+                        CellValue = new CellValue(link.Row.ToString())
+                    });
 
-                        var colIndex = GetColumnIndex(cell.CellReference.Value);
-                        var cellValue = GetCellValue(cell, workbookPart);
-
-                        if (!string.IsNullOrWhiteSpace(cellValue))
-                            hasData = true;
-
-                        var newCell = new Cell
-                        {
-                            CellReference = GetCellReference(newRowIndex, colIndex),
-                            DataType = CellValues.String,
-                            CellValue = new CellValue(cellValue)
-                        };
-
-                        var hyperlink = GetHyperlink(worksheetPart, cell.CellReference.Value, hyperlinkMap);
-                        if (hyperlink != null)
-                        {
-                            newCell.StyleIndex = 2;
-
-                            if (colIndex == targetColumnIndex)
-                            {
-                                var rowNumber = row.RowIndex?.Value != null ? (int)row.RowIndex.Value : (int)newRowIndex;
-                                result.Links.Add(new LinkInfo
-                                {
-                                    Row = rowNumber,
-                                    Title = cellValue,
-                                    Url = hyperlink
-                                });
-                            }
-                        }
-
-                        newRow.Append(newCell);
-                    }
-
-                    if (hasData)
+                    newRow.Append(new Cell
                     {
-                        newSheetData.Append(newRow);
-                        newRowIndex++;
-                    }
+                        CellReference = $"B{newRowIndex}",
+                        DataType = CellValues.String,
+                        CellValue = new CellValue(link.Title)
+                    });
+
+                    newRow.Append(new Cell
+                    {
+                        CellReference = $"C{newRowIndex}",
+                        DataType = CellValues.String,
+                        CellValue = new CellValue(link.Url),
+                        StyleIndex = 2
+                    });
+
+                    newSheetData.Append(newRow);
+                    newRowIndex++;
                 }
 
                 result.TotalRows = (int)(newRowIndex - 2);
-                result.LinksFound = result.Links.Count;
+                result.LinksFound = extractedLinks.Count;
+                result.Links = extractedLinks;
                 context.Rows = result.TotalRows;
 
                 var columns = new Columns();
-                columns.Append(new Column { Min = 1, Max = 1, Width = 30, CustomWidth = true });
-                columns.Append(new Column { Min = 2, Max = 2, Width = 50, CustomWidth = true });
+                columns.Append(new Column { Min = 1, Max = 1, Width = 10, CustomWidth = true });
+                columns.Append(new Column { Min = 2, Max = 2, Width = 40, CustomWidth = true });
+                columns.Append(new Column { Min = 3, Max = 3, Width = 60, CustomWidth = true });
                 newWorksheetPart.Worksheet.InsertBefore(columns, newSheetData);
 
                 newWorkbookPart.Workbook.Save();
